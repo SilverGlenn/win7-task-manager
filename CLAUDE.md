@@ -1,6 +1,6 @@
 # Agent Handoff & Architecture Guide (`plasma-systemmonitor` — Windows 7 Task Manager)
 
-This document provides complete context, architecture details, visual specifications, and operational constraints for agents working on this repository.
+This guide describes the accepted Windows 7 UI baseline, its current implementation, verification steps, and local deployment. Keep it synchronized with `CLAUDE.md`; update `README.md` for user-facing behavior.
 
 ---
 
@@ -29,25 +29,27 @@ This document provides complete context, architecture details, visual specificat
 ## 2. File Map & Component Responsibilities
 
 ### C++ Backend & Entry Point
+
 - [`CMakeLists.txt`](CMakeLists.txt):
   - Configured to build cleanly against the host's Qt `6.10.x` and KF6 `6.24.x` / Plasma `6.6.x` libraries (`PROJECT_DEP_VERSION "6.6.0"`, `QT_MIN_VERSION "6.10.0"`, `KF6_MIN_VERSION "6.24.0"`, and `KF6KirigamiAddons` marked `TYPE RUNTIME`).
 - [`src/CMakeLists.txt`](src/CMakeLists.txt):
   - Registers all `Win7*.qml` components in `ecm_target_qml_sources(plasma-systemmonitor ...)`.
 - [`src/main.cpp`](src/main.cpp):
   - Initializes the font database before registering the Windows 7 reference Segoe UI faces. Loads the newer Segoe UI files only as a fallback, because duplicate family names override the reference faces. Regular UI text uses `12px` (9pt at 96 DPI).
-  - Sets application display name to `"Windows Task Manager"`.
-  - Procedurally renders the authentic 16x16 and 32x32 Windows 7 Task Manager window icon (black monitor with `#008040` grid and `#00ff00` CPU waveform).
+  - Uses `Windows Task Manager` in `KAboutData` and the main QML window title. Clears Qt's application display name to avoid appending a duplicate suffix to dialog titles.
+  - Loads `utilities-system-monitor.png` at 16/24/32/48/256 sizes from `/usr/share/icons/Windows 7 Aero/apps/`, falling back to the current icon theme. It does not render the icon procedurally.
   - Uses `KDBusService(KDBusService::Multiple)` so `./build/bin/plasma-systemmonitor` can run alongside an installed `/usr/bin/plasma-systemmonitor` instance without exiting early.
   - Supports `WIN7_SCREENSHOT_DIR` for automated offscreen tab and menu capture.
   - Captures tabs and dialogs sequentially, using `Main.debugCaptureWindow` to select the intended dialog. Do not schedule independent capture steps: their timers can overlap and mislabel the images.
 - [`src/ToolsModel.h`](src/ToolsModel.h) & [`src/ToolsModel.cpp`](src/ToolsModel.cpp):
   - Exposes `Q_INVOKABLE void runCommand(const QString &command)` backed by `KIO::CommandLauncherJob` to power `File -> New Task (Run...)`.
-  - Provides `/proc/sys/fs/file-nr` (`systemHandlesCount()`) and `/proc/loadavg` (`systemThreadsCount()`) helpers if needed, plus external tool launching (`trigger(id)`).
+  - Provides external tool launching (`trigger(id)`) and themed dialog icons (`setWindowIconByName`). There are no Handles/Threads `/proc` helpers in the current implementation.
 
 - [`src/Win7SnapshotModel.h`](src/Win7SnapshotModel.h) & [`src/Win7SnapshotModel.cpp`](src/Win7SnapshotModel.cpp):
   - Cache process/application model rows, header roles, and values until the shared update clock refreshes them. Stable PID identities preserve indexes and scroll position when rows change. Views must read the snapshot rather than the live backend to honor Paused.
 
 ### QML Shell, Menus & Reusable Win7 Controls
+
 - [`src/Main.qml`](src/Main.qml):
   - `397x421` default window dimensions matching the Windows 7 Task Manager client area.
   - Top 19px Windows 7 Aero menu bar (`#fefeff` -> `#f2f5fa` -> `#e5eaf5` -> `#d4dbed` -> `#e1e6f6`, bottom `#b6bccc` border) with `File`, `Options`, `View`, contextual `Windows` (visible only when `currentTabId === "applications"`), and `Help`, plus authentic pressed `#4b4d54` inset button frame and hover-to-switch open menus.
@@ -55,7 +57,7 @@ This document provides complete context, architecture details, visual specificat
   - Maps the built-in pages into 5 tabs (`Overview`, `Applications`, `Processes`, `Performance`, `Networking`) and appends any non-hidden custom user pages from `Page.PagesModel`.
   - Bottom 23px 3-pane sunken status bar (`Processes: <N>`, `CPU Usage: <X>%`, `Physical Memory: <Y>%`) with a classic 3x3 diagonal resize grip.
 - [`src/GlobalMenu.qml`](src/GlobalMenu.qml):
-  - Mirrors the exact Windows 7 Task Manager menu hierarchy (`File`, `Options`, `View`, `Windows`, `Help`) to KDE's global menu bar (`Labs.MenuBar`).
+  - Contains a limited `Qt.labs.platform` menu component for File, Options, Refresh Now, and Help. The current shell does not instantiate it; `Main.qml` owns the active full menu bar and contextual Windows menu.
 - [`src/Win7Menu.qml`](src/Win7Menu.qml), [`src/Win7MenuItem.qml`](src/Win7MenuItem.qml), & [`src/Win7MenuSeparator.qml`](src/Win7MenuSeparator.qml):
   - Pixel-accurate Windows 7 popup menu and context menu components (`1px` `#979797` outer border, `2px` `#f5f5f5` inner frame, `26px` `#f1f1f1` icon/check gutter at `x: 3..28`, `2px` `#e2e3e3`/`#ffffff` vertical gutter divider at `x: 29..30`, `#f0f0f0` menu face, `4px` right/bottom drop shadow, `22px` item height, `22x22` `#aecff7` rounded check/radio indicator box with `#0c12a1` checkmark or radial radio bullet, right-aligned `\t` shortcut column, `4x7` black submenu arrow, `8px` etched separator starting at `x: 28` after the gutter, and `property bool shown` for conditional tab-specific submenus).
 - [`src/Win7Button.qml`](src/Win7Button.qml):
@@ -65,7 +67,7 @@ This document provides complete context, architecture details, visual specificat
 - [`src/Win7UpdateClock.qml`](src/Win7UpdateClock.qml) & [`src/Win7Sensor.qml`](src/Win7Sensor.qml):
   - One shared refresh cycle uses 500ms (High), 2000ms (Normal/default), 4000ms (Low), or 0 (Paused). The clock samples sensors before refreshing table snapshots and graphs. Sensor values are latched between ticks; F5 samples once without leaving Paused. Tab graphs disable their independent timers.
 - [`src/Win7ScrollBar.qml`](src/Win7ScrollBar.qml):
-  - Persistent `17px` Aero scrollbar with arrow buttons, a beveled thumb and grip. Processes reserves space for both axes so controls do not cover row values or one another.
+  - `17px` Aero scrollbar with arrow buttons, a beveled thumb and grip. Overview and Processes reserve space for both axes as needed so controls do not cover row values or one another.
 - [`src/Win7Gauge.qml`](src/Win7Gauge.qml):
   - Pixel-accurate Win7 vertical LED bar gauge (`2px` sunken 3D bevel `#a0a0a0`/`#696969` top-left, `#ffffff`/`#e3e3e3` bottom-right, `#000000` fill, dual `16px` columns separated by a `2px` gap, `2px` segment height + `1px` gap, `#008000` checkerboard dithered unlit segments, `#00ff00` lit segments, `#ff0000` kernel segments, and bottom `#00ff00` readout text).
 - [`src/Win7HistoryGraph.qml`](src/Win7HistoryGraph.qml):
@@ -77,17 +79,18 @@ This document provides complete context, architecture details, visual specificat
   - Updated selection/hover highlight to the Windows 7 Aero icy-blue gradient (`#dcebfc` -> `#c1dbfc` with `#7da2ce` border).
 
 ### Tab Views
+
 - [`src/Win7OverviewTab.qml`](src/Win7OverviewTab.qml):
-  - Native-feeling Windows 7 **Overview** tab combining `CPU` and `Memory` `Win7Gauge`s, `Resource History (CPU / Memory)` `Win7HistoryGraph`, `System & Memory` and `Disk & Network` `Win7GroupBox`es, and `Top Resource Processes` list (`ProcessDataModel` + `ProcessSortFilterModel.ViewUser` sorted by Memory % descending). Its sortable `CPU %` and `Memory %` columns reuse `Win7ProcessFormat.js`; the derived memory percentage sorts on the backend memory attribute. Both axes use `Win7ScrollBar` and the header tracks horizontal scrolling.
+  - Native-feeling Windows 7 **Overview** tab combining `CPU` and `Memory` `Win7Gauge`s, `Resource History (CPU / Memory)` `Win7HistoryGraph`, `System & Memory` and `Disk & Network` `Win7GroupBox`es, and `Top Resource Processes` list (`ProcessDataModel` → `Win7SnapshotModel` → `ProcessSortFilterModel.ViewUser`, sorted by Memory % descending). Its sortable `CPU %` and `Memory %` columns reuse `Win7ProcessFormat.js`; the derived memory percentage sorts on the backend memory attribute. Both axes use `Win7ScrollBar` and the header tracks horizontal scrolling.
 - [`src/Win7ApplicationsTab.qml`](src/Win7ApplicationsTab.qml):
-  - Uses `Process.ApplicationDataModel` + `KItemModels.KSortFilterProxyModel` (filtering out empty `appName` and system slices `session.slice`/`background.slice`/`services`), with automatic fallback to `Process.ProcessDataModel` (`ViewOwn`).
+  - Uses `Process.ApplicationDataModel` → `Win7SnapshotModel` → `KItemModels.KSortFilterProxyModel` (filtering out empty `appName` and system slices `session.slice`/`background.slice`/`services`), with a separate snapshot for the `Process.ProcessDataModel` (`ViewOwn`) fallback. Read mapped indexes from the snapshot, not the original backend model.
 - [`src/Win7ProcessesTab.qml`](src/Win7ProcessesTab.qml):
-  - Uses `Process.ProcessDataModel` + `Table.ProcessSortFilterModel` (`ViewOwn` by default, `ViewAll` when `Show processes from all users` is clicked), `Process.ProcessController`, `Table.ColumnConfigurationDialog`, `Table.ReniceDialog`, and `Table.AffinityDialog`.
+  - Uses `Process.ProcessDataModel` → `Win7SnapshotModel` → `Table.ProcessSortFilterModel` (`ViewOwn` by default, `ViewAll` when `Show processes from all users` is clicked) and `Process.ProcessController`. Select Columns, priority, affinity, properties, and termination confirmation use custom windows declared in this file.
   - Shows `CPU %` and `Memory %` with one decimal place. CPU is normalized against the backend maximum; memory is process KiB converted to bytes divided by `memory/physical/total`. The derived `memoryPercent` column sorts using `memory` and must never be sent as a backend attribute. `Win7ProcessFormat.js` handles percentage formatting and unavailable totals.
 - [`src/Win7PerformanceTab.qml`](src/Win7PerformanceTab.qml):
-  - Uses `Sensors.Sensor` for CPU, per-core CPU (`cpu/cpu*/usage`, `cpu/cpu*/system`), physical memory, cache, buffer, free, swap, and uptime, plus `/proc/sys/fs/file-nr` and `/proc/loadavg` via `XMLHttpRequest` for live `Handles` and `Threads` counts.
+  - Uses `Win7Sensor` wrappers around `Sensors.Sensor` for CPU, per-core CPU (`cpu/cpu*/usage`, `cpu/cpu*/system`), physical memory, cache, buffer, free, swap, and uptime. Handles/Threads and Windows kernel-memory fields are estimates derived from process/memory values; there is no `/proc` or `XMLHttpRequest` sampling here. Per-core history currently displays at most eight graphs. Resource Monitor switches to Overview.
 - [`src/Win7NetworkingTab.qml`](src/Win7NetworkingTab.qml):
-  - Uses `Sensors.Sensor` (`network/all/download`, `network/all/upload`, `network/wlan0/network`, etc.) with dynamic scale ceiling (`1%` to `100%`) and 4-column adapter table (`Adapter Name`, `Network Utilization`, `Link Speed`, `State`).
+  - Uses `Win7Sensor` for aggregate `network/all/*` readings and `network/wlp2s0/*` for the optional wireless label/address. The graph scale uses powers of ten with a 1 Mbps minimum. The adapter table has Adapter Name, Network Utilization, Link Speed, and State columns; 100 Mbps and Connected are currently fixed display values.
 
 ---
 
@@ -102,6 +105,12 @@ This document provides complete context, architecture details, visual specificat
 3. **`ViewOwn` and `ViewUser` Require `"uid"` in `enabledAttributes`**:
    - `ProcessSortFilterModel::filterAcceptsRow()` checks `m_uidColumn`. Any `ProcessDataModel` paired with `ProcessSortFilterModel` using `ViewOwn`, `ViewUser`, or `ViewSystem` **must** include `"uid"` in `enabledAttributes` (and `"uid"` in `hiddenAttributes` so it doesn't take a visible column slot).
 
+4. **Shared sampling and Paused behavior**:
+   - `Win7UpdateClock.sampleRequested` latches sensor values first; `refreshed` then calls `Main.refreshViews()` to sample model snapshots and advance visible graphs. Keep built-in graph timers disabled (`running: false`) to prevent double sampling.
+   - Display rows, header roles, values, and application icons must come from `Win7SnapshotModel`. Reading the live backend bypasses Paused. Use `ProcessDataModel.PIDs` as the snapshot key role and bind `initialUpdatesEnabled` to the clock being unpaused.
+   - Initial asynchronous data may populate a new view while unpaused. Once initialized, emptying a list must not re-enable automatic startup sampling. `TestWin7Updates` covers this regression and persistent indexes across membership changes.
+   - Pause freezes the built-in display; `ksystemstats` can continue supplying other consumers. A refresh uses the most recent available backend readings.
+
 ---
 
 ## 4. Current User-Local Installation
@@ -109,3 +118,13 @@ This document provides complete context, architecture details, visual specificat
 - The installed prefix is `/home/siru/.local/lib/win7-task-manager`; the existing build is configured with that `CMAKE_INSTALL_PREFIX`. After a verified build, run `cmake --install build` to update the installed app.
 - `/home/siru/.local/bin/plasma-systemmonitor` wraps the installed executable and supplies its private QML import and data paths. Desktop launches use this wrapper, so rebuilding alone does not update the app the user opens from the Start menu.
 - Local overrides in `~/.local/share/applications/` and `~/.local/share/kglobalaccel/` keep the desktop ID `org.kde.plasma-systemmonitor.desktop`, display **Task Manager**, and use **Ctrl+Shift+Esc**. Preserve these overrides when reinstalling; copy them over the corresponding desktop files inside the private prefix after CMake installation.
+
+---
+
+## 5. Verification and Baseline Documentation
+
+- Run `QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure`. The suites are `appstreamtest`, `TestPageManager`, and `TestWin7Updates`; the latter covers High/Normal/Low timing, pause/manual refresh/resume, frozen values/membership, and persistent row indexes. Qt page tests write to `~/.qttest` even when `XDG_DATA_HOME` is overridden.
+- The screenshot command in section 1 also captures sorted/scrolled tables, dialogs, `our_<tab>_paused.png` / `our_<tab>_paused_again.png` for all five built-in tabs, and `our_overview_refreshed.png` / `our_overview_resumed.png`. Paused pairs should be byte-identical; the manually refreshed Overview should differ. See the comparison snippet in `README.md`.
+- `docs/screenshots/performance.png` records the accepted offscreen client-area appearance at 100% scale. Update it only after visually checking intentional UI changes.
+- Keep implementation status accurate: target-window management remains preliminary; Debug/UAC virtualization/dump creation are disabled; End Process Tree currently force-kills only the selected PID. Do not document these as complete features.
+- The local wrapper, Task Manager name, and Ctrl+Shift+Esc registration are user configuration. The checked-in desktop template still uses System Monitor / Meta+Esc, so plain CMake installation on another machine does not reproduce those local overrides.

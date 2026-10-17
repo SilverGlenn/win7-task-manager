@@ -9,6 +9,9 @@
 #include <QDBusConnection>
 #include <QDBusConnectionInterface>
 #include <QDBusPendingCall>
+#include <QFile>
+#include <QIcon>
+#include <QWindow>
 
 #include <QDebug>
 
@@ -103,6 +106,38 @@ void ToolsModel::trigger(const QString &id)
                                                       QStringLiteral("org.kde.KWin"),
                                                       QStringLiteral("killWindow"));
         QDBusConnection::sessionBus().asyncCall(message);
+    }
+}
+
+void ToolsModel::runCommand(const QString &command)
+{
+    const QString trimmed = command.trimmed();
+    if (trimmed.isEmpty()) {
+        return;
+    }
+    auto *job = new KIO::CommandLauncherJob(trimmed);
+    job->start();
+}
+
+void ToolsModel::setWindowIconByName(QWindow *window, const QString &iconName)
+{
+    if (!window || iconName.isEmpty()) {
+        return;
+    }
+    QIcon icon;
+    for (const QString &cat : {QStringLiteral("actions"), QStringLiteral("apps"), QStringLiteral("mimetypes"), QStringLiteral("preferences")}) {
+        for (int sz : {16, 22, 24, 32, 48}) {
+            const QString path = QStringLiteral("/usr/share/icons/Windows 7 Aero/%1/%2/%3.png").arg(cat).arg(sz).arg(iconName);
+            if (QFile::exists(path)) {
+                icon.addFile(path, QSize(sz, sz));
+            }
+        }
+    }
+    if (icon.isNull()) {
+        icon = QIcon::fromTheme(iconName);
+    }
+    if (!icon.isNull()) {
+        window->setIcon(icon);
     }
 }
 

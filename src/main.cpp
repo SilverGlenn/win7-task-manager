@@ -8,10 +8,19 @@
 #include <QCommandLineParser>
 #include <QDBusConnection>
 #include <QDBusConnectionInterface>
+#include <QDebug>
+#include <QDir>
+#include <QFile>
+#include <QFont>
+#include <QFontDatabase>
+#include <QPainter>
+#include <QPixmap>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QQuickWindow>
 #include <QSessionManager>
 #include <QSurfaceFormat>
+#include <QTimer>
 #include <QWindow>
 
 #include <KAboutData>
@@ -52,13 +61,57 @@ int main(int argc, char **argv)
     format.setOption(QSurfaceFormat::ResetNotification);
     QSurfaceFormat::setDefaultFormat(format);
 
+    // Use native text rendering across all QML Text elements (matching aerothemeplasma-win7)
+    QQuickWindow::setTextRenderType(QQuickWindow::NativeTextRendering);
+
     QApplication app(argc, argv);
-    app.setWindowIcon(QIcon::fromTheme(QStringLiteral("utilities-system-monitor")));
+
+    // Populate system faces first so lazy font discovery cannot replace the
+    // application fonts with an installed font of the same family later.
+    QFontDatabase::families();
+
+    // Register only one Segoe UI version: loading the newer fallback after the
+    // Windows 7 copy overrides its faces, even though the family name is identical.
+    const QString referenceFontDir = QDir::homePath() + QStringLiteral("/.local/share/linux-explorer-win7/reference-fonts/");
+    const QString fallbackFontDir = QDir::homePath() + QStringLiteral("/.local/share/fonts/reactxp-segoe-ui/");
+    const bool hasReferenceSegoe = QFontDatabase::addApplicationFont(referenceFontDir + QStringLiteral("segoeui.ttf")) >= 0;
+    const QStringList fontPaths = hasReferenceSegoe
+        ? QStringList{referenceFontDir + QStringLiteral("segoeuib.ttf"), referenceFontDir + QStringLiteral("segoeuii.ttf")}
+        : QStringList{fallbackFontDir + QStringLiteral("SegoeUI-Regular.ttf"),
+                      fallbackFontDir + QStringLiteral("SegoeUI-Bold.ttf"),
+                      fallbackFontDir + QStringLiteral("SegoeUI-Semibold.ttf"),
+                      fallbackFontDir + QStringLiteral("SegoeUI-Light.ttf")};
+    for (const QString &fp : fontPaths) {
+        if (QFile::exists(fp)) {
+            QFontDatabase::addApplicationFont(fp);
+        }
+    }
+    QFontDatabase::addApplicationFont(referenceFontDir + QStringLiteral("tahoma.ttf"));
+
+    // Win7's 9pt text is 12px at 96 DPI; keep it consistent with the QML geometry.
+    QFont win7Font(QStringLiteral("Segoe UI"));
+    win7Font.setPixelSize(12);
+    win7Font.setStyleName(QStringLiteral("Regular"));
+    win7Font.setHintingPreference(QFont::PreferFullHinting);
+    app.setFont(win7Font);
+
+    // Load authentic Windows 7 Task Manager icon from Windows 7 Aero icon theme (with fallback)
+    QIcon taskMgrIcon;
+    for (int sz : {16, 24, 32, 48, 256}) {
+        const QString iconPath = QStringLiteral("/usr/share/icons/Windows 7 Aero/apps/%1/utilities-system-monitor.png").arg(sz);
+        if (QFile::exists(iconPath)) {
+            taskMgrIcon.addFile(iconPath, QSize(sz, sz));
+        }
+    }
+    if (taskMgrIcon.isNull()) {
+        taskMgrIcon = QIcon::fromTheme(QStringLiteral("utilities-system-monitor"));
+    }
+    app.setWindowIcon(taskMgrIcon);
 
     KLocalizedString::setApplicationDomain(QByteArrayLiteral("plasma-systemmonitor"));
 
     KAboutData aboutData{/* componentName */ QStringLiteral("plasma-systemmonitor"),
-                         /* displayName */ i18n("System Monitor"),
+                         /* displayName */ i18n("Windows Task Manager"),
                          /* version */ PROJECT_VERSION,
                          /* shortDescription */ i18n("An application for monitoring system resources"),
                          /* licenseType */ KAboutLicense::GPL,
@@ -80,10 +133,12 @@ int main(int argc, char **argv)
 
     aboutData.setBugAddress("https://bugs.kde.org/enter_bug.cgi?product=plasma-systemmonitor");
     KAboutData::setApplicationData(aboutData);
+    // Prevent Qt from appending " — Windows Task Manager" to dialog window titles like "Create New Task"
+    QGuiApplication::setApplicationDisplayName(QString());
 
     KCrash::initialize();
 
-    KDBusService service(KDBusService::Unique);
+    KDBusService service(KDBusService::Multiple);
 
     auto parser = std::make_shared<QCommandLineParser>();
     aboutData.setupCommandLine(parser.get());
@@ -93,7 +148,7 @@ int main(int argc, char **argv)
     aboutData.processCommandLine(parser.get());
     CommandLineArguments::setCommandLineParser(parser);
 
-    auto sessionManager = new SessionManager(&app);
+    new SessionManager(&app);
 
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextObject(new KLocalizedQmlContext(&engine));
@@ -109,6 +164,84 @@ int main(int argc, char **argv)
     // QDBusConnectionInterface::StartService is blocking so we do it manually
     const auto busInterface = QDBusConnection::sessionBus().interface();
     busInterface->asyncCall(QStringLiteral("StartServiceByName"), QStringLiteral("org.kde.ksystemstats"), 0u);
+
+    const QString shotDir = qEnvironmentVariable("WIN7_SCREENSHOT_DIR");
+    if (!shotDir.isEmpty() && !engine.rootObjects().isEmpty()) {
+        QObject *rootObj = engine.rootObjects().first();
+        auto *quickWin = qobject_cast<QQuickWindow *>(rootObj);
+        if (quickWin) {
+            struct CaptureStep {
+                QString tabId;
+                QString menuId;
+                QString fileName;
+                bool grabSecondaryWindow = false;
+            };
+            const QList<CaptureStep> steps = {
+                {QStringLiteral("overview"), QString(), QStringLiteral("our_overview.png"), false},
+                {QStringLiteral("overview"), QStringLiteral("sort_overview_cpu"), QStringLiteral("our_overview_sorted_cpu.png"), false},
+                {QStringLiteral("overview"), QStringLiteral("scroll_overview_right"), QStringLiteral("our_overview_scrolled.png"), false},
+                {QStringLiteral("applications"), QString(), QStringLiteral("our_applications.png"), false},
+                {QStringLiteral("processes"), QString(), QStringLiteral("our_processes.png"), false},
+                {QStringLiteral("processes"), QStringLiteral("sort_mem"), QStringLiteral("our_processes_sorted_mem.png"), false},
+                {QStringLiteral("processes"), QStringLiteral("sort_cpu"), QStringLiteral("our_processes_sorted_cpu.png"), false},
+                {QStringLiteral("processes"), QStringLiteral("scroll_proc_right"), QStringLiteral("our_processes_scrolled.png"), false},
+                {QStringLiteral("performance"), QString(), QStringLiteral("our_performance.png"), false},
+                {QStringLiteral("networking"), QString(), QStringLiteral("our_networking.png"), false},
+                {QStringLiteral("processes"), QStringLiteral("file"), QStringLiteral("our_menu_file.png"), false},
+                {QStringLiteral("processes"), QStringLiteral("options"), QStringLiteral("our_menu_options.png"), false},
+                {QStringLiteral("performance"), QStringLiteral("view"), QStringLiteral("our_menu_view.png"), false},
+                {QStringLiteral("applications"), QStringLiteral("windows"), QStringLiteral("our_menu_windows.png"), false},
+                {QStringLiteral("processes"), QStringLiteral("help"), QStringLiteral("our_menu_help.png"), false},
+                {QStringLiteral("processes"), QStringLiteral("ctx_proc"), QStringLiteral("our_ctx_proc.png"), false},
+                {QStringLiteral("processes"), QStringLiteral("dlg_newtask"), QStringLiteral("our_dlg_newtask.png"), true},
+                {QStringLiteral("processes"), QStringLiteral("dlg_about"), QStringLiteral("our_dlg_about.png"), true},
+                {QStringLiteral("processes"), QStringLiteral("dlg_props"), QStringLiteral("our_dlg_props.png"), true},
+                {QStringLiteral("processes"), QStringLiteral("dlg_cols"), QStringLiteral("our_dlg_cols.png"), true},
+            };
+            // Advance only after the preceding image has been saved. Independent
+            // timers could overlap and save the next tab/dialog under the old name.
+            auto *captureTimer = new QTimer(quickWin);
+            captureTimer->setSingleShot(true);
+            QObject::connect(captureTimer, &QTimer::timeout, quickWin,
+                             [quickWin, rootObj, shotDir, steps, captureTimer, stepIndex = 0]() mutable {
+                    const auto step = steps.at(stepIndex++);
+                    const bool lastStep = stepIndex == steps.size();
+                    rootObj->setProperty("debugOpenMenu", QString());
+                    rootObj->setProperty("currentTabId", step.tabId);
+                    QTimer::singleShot(200, Qt::PreciseTimer, quickWin, [quickWin, rootObj, step, lastStep, shotDir, captureTimer]() {
+                        rootObj->setProperty("debugOpenMenu", step.menuId);
+                        QTimer::singleShot(450, Qt::PreciseTimer, quickWin, [quickWin, rootObj, step, lastStep, shotDir, captureTimer]() {
+                            QQuickWindow *targetWin = quickWin;
+                            if (step.grabSecondaryWindow) {
+                                targetWin = qobject_cast<QQuickWindow *>(rootObj->property("debugCaptureWindow").value<QObject *>());
+                                if (!targetWin || !targetWin->isVisible()) {
+                                    qWarning() << "Screenshot dialog is not visible:" << step.fileName;
+                                    qApp->exit(1);
+                                    return;
+                                }
+                            }
+                            const QImage img = targetWin->grabWindow();
+                            if (img.isNull() || !img.save(shotDir + QLatin1Char('/') + step.fileName)) {
+                                qWarning() << "Could not save screenshot:" << step.fileName;
+                                qApp->exit(1);
+                                return;
+                            }
+                            qInfo() << "Captured" << step.fileName << img.size();
+                            if (targetWin != quickWin) {
+                                targetWin->close();
+                            }
+                            if (lastStep) {
+                                qApp->quit();
+                            } else {
+                                captureTimer->start(250);
+                            }
+                        });
+                    });
+            });
+            captureTimer->start(2500);
+        }
+    }
+
     return app.exec();
 }
 

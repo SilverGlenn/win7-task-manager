@@ -14,6 +14,7 @@
 #include <KService>
 
 class QDBusInterface;
+class QWindow;
 
 /**
  * @todo write docs
@@ -38,6 +39,8 @@ public:
     QVariant data(const QModelIndex &index, int role) const override;
 
     Q_INVOKABLE void trigger(const QString &id);
+    Q_INVOKABLE void runCommand(const QString &command);
+    Q_INVOKABLE void setWindowIconByName(QWindow *window, const QString &iconName);
 
 private:
     void addFromService(const QString &serviceName);

@@ -19,6 +19,22 @@ target_sources(plasma-systemmonitor PRIVATE
 ecm_target_qml_sources(plasma-systemmonitor SOURCES
     Main.qml
     GlobalMenu.qml
+    Win7Button.qml
+    Win7ProcessFormat.js
+    Win7ScrollBar.qml
+    Win7GroupBox.qml
+    Win7Gauge.qml
+    Win7HistoryGraph.qml
+    Win7Menu.qml
+    Win7MenuItem.qml
+    Win7MenuSeparator.qml
+    Win7OverviewTab.qml
+    Win7ApplicationsTab.qml
+    Win7ProcessesTab.qml
+    Win7PerformanceTab.qml
+    Win7NetworkingTab.qml
+    Win7NewTaskDialog.qml
+    Win7AboutDialog.qml
 )
 
 

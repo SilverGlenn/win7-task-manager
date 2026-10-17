@@ -4,9 +4,9 @@ project(systemmonitor)
 
 set(PROJECT_VERSION "6.8.80")
 
-set(PROJECT_DEP_VERSION "6.7.90")
-set(QT_MIN_VERSION "6.11.0")
-set(KF6_MIN_VERSION "6.30.0")
+set(PROJECT_DEP_VERSION "6.6.0")
+set(QT_MIN_VERSION "6.10.0")
+set(KF6_MIN_VERSION "6.24.0")
 set(KDE_COMPILERSETTINGS_LEVEL "5.82")
 
 find_package(ECM ${KF6_MIN_VERSION} REQUIRED NO_MODULE)
@@ -52,9 +52,9 @@ find_package(KF6QuickCharts ${KF6_MIN_VERSION})
 set_package_properties(KF6QuickCharts PROPERTIES
     TYPE RUNTIME
 )
-find_package(KF${QT_MAJOR_VERSION}KirigamiAddons 1.1.0 REQUIRED)
+find_package(KF${QT_MAJOR_VERSION}KirigamiAddons 1.1.0)
 set_package_properties(KF${QT_MAJOR_VERSION}KirigamiAddons PROPERTIES
-    TYPE REQUIRED
+    TYPE RUNTIME
     PURPOSE "Provides additional visual components"
 )
 ecm_find_qmlmodule(Qt.labs.qmlmodels 1.0)

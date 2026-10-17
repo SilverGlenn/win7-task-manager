@@ -42,6 +42,7 @@ public:
     void setSourceModel(QAbstractItemModel *newSourceModel) override;
     bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const override;
     bool filterAcceptsColumn(int sourceColumn, const QModelIndex &sourceParent) const override;
+    bool lessThan(const QModelIndex &source_left, const QModelIndex &source_right) const override;
 
     QString filterString() const;
     void setFilterString(const QString &newFilterString);
@@ -63,6 +64,8 @@ public:
     Q_SIGNAL void columnMappingChanged();
 
     Q_INVOKABLE void sort(int column, Qt::SortOrder order) override;
+    Q_INVOKABLE QVariant attributeValue(int row, const QString &attribute) const;
+    Q_INVOKABLE double attributeMaximum(int row, const QString &attribute) const;
     Q_SIGNAL void sorted();
 
 private:
@@ -74,6 +77,7 @@ private:
     QStringList m_hiddenAttributes;
     QVariantList m_filterPids;
     QVariantMap m_columnMapping;
+    QHash<QString, int> m_sourceColumns;
 
     int m_uidColumn = -1;
     int m_pidColumn = -1;

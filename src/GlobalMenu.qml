@@ -6,56 +6,47 @@
 
 import QtQuick
 import Qt.labs.platform as Labs
-import org.kde.newstuff as NewStuff
-import org.kde.coreaddons as KCoreAddons
-
-import org.kde.systemmonitor
 
 Labs.MenuBar {
     Labs.Menu {
         title: i18nc("@menu", "File")
 
         Labs.MenuItem {
-            text: i18nc("@menu-action", "Add New Page…")
-            icon.name: "list-add"
-            onTriggered: pageDialog.open()
+            text: i18nc("@menu-action", "New Task (Run...)")
+            onTriggered: app.openNewTaskDialog()
         }
+
+        Labs.MenuSeparator { }
 
         Labs.MenuItem {
-            text: i18nc("@menu-action", "Import Page…")
-            icon.name: "document-import"
-            onTriggered: importDialog.open()
-        }
-
-        Labs.MenuItem {
-            text: i18nc("@menu-action", "Export Current Page…")
-            icon.name: "document-export"
-            enabled: !app.pageStack.currentItem?.edit ?? false
-            onTriggered: exportDialog.open()
-        }
-
-        Labs.MenuItem {
-            text: i18nc("@menu-action", "Get New Pages…")
-            icon.name: "get-hot-new-stuff"
-            onTriggered: ghnsAction.showHotNewStuff()
-        }
-
-        NewStuff.Action {
-            id: ghnsAction
-            configFile: "plasma-systemmonitor.knsrc"
-            pageStack: app.pageStack.layers
-            onEntryEvent: {
-                if (event === NewStuff.Engine.StatusChangedEvent) {
-                    pagesModel.ghnsEntryStatusChanged(entry)
-                }
-            }
-        }
-
-        Labs.MenuItem {
-            text: i18nc("@menu-action", "Quit")
-            icon.name: "gtk-quit"
+            text: i18nc("@menu-action", "Exit Task Manager")
             shortcut: StandardKey.Quit
             onTriggered: Qt.quit()
+        }
+    }
+
+    Labs.Menu {
+        title: i18nc("@menu", "Options")
+
+        Labs.MenuItem {
+            text: i18nc("@menu-action", "Always On Top")
+            checkable: true
+            checked: app.alwaysOnTop
+            onTriggered: app.alwaysOnTop = !app.alwaysOnTop
+        }
+
+        Labs.MenuItem {
+            text: i18nc("@menu-action", "Minimize On Use")
+            checkable: true
+            checked: app.minimizeOnUse
+            onTriggered: app.minimizeOnUse = !app.minimizeOnUse
+        }
+
+        Labs.MenuItem {
+            text: i18nc("@menu-action", "Hide When Minimized")
+            checkable: true
+            checked: app.hideWhenMinimized
+            onTriggered: app.hideWhenMinimized = !app.hideWhenMinimized
         }
     }
 
@@ -63,19 +54,9 @@ Labs.MenuBar {
         title: i18nc("@menu", "View")
 
         Labs.MenuItem {
-            text: app.globalDrawer.collapsed ? i18nc("@menu-action", "Expand Sidebar") : i18nc("@menu-action", "Collapse Sidebar")
-            icon.name: app.globalDrawer.collapsed ? "view-split-left-right" : "view-left-close"
-            onTriggered: app.globalDrawer.collapsed = !app.globalDrawer.collapsed
-        }
-    }
-
-    Labs.Menu {
-        title: i18nc("@menu", "Settings")
-
-        Labs.MenuItem {
-            text: i18nc("@menu-action", "Edit or Remove Pages…")
-            icon.name: "handle-sort"
-            onTriggered: pageSortDialog.open()
+            text: i18nc("@menu-action", "Refresh Now")
+            shortcut: "F5"
+            onTriggered: app.refreshCurrentTab()
         }
     }
 
@@ -83,16 +64,8 @@ Labs.MenuBar {
         title: i18nc("@menu", "Help")
 
         Labs.MenuItem {
-            text: i18nc("@menu-action", "Report Bug…")
-            icon.name: "tools-report-bug"
-            onTriggered: Qt.openUrlExternally(KCoreAddons.AboutData.bugAddress);
-        }
-
-        Labs.MenuItem {
-            text: i18nc("@menu-action", "About System Monitor")
-            icon.name: "help-about"
-            onTriggered: app.pageStack.layers.push(Qt.createComponent("org.kde.kirigamiaddons.formcard", "AboutPage"))
-            enabled: app.pageStack.layers.depth <= 1
+            text: i18nc("@menu-action", "About Task Manager")
+            onTriggered: app.openAboutDialog()
         }
     }
 }

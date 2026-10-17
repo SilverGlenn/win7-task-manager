@@ -34,15 +34,20 @@ TreeViewDelegate
     topInset: 0
 
     background: Rectangle {
-        color: (root.row % 2 == 0 || root.selected) ? Kirigami.Theme.backgroundColor : Kirigami.Theme.alternateBackgroundColor
+        color: "#ffffff"
 
         Rectangle {
             anchors.fill: parent
-            Kirigami.Theme.inherit: false
-            Kirigami.Theme.colorSet: Kirigami.Theme.Selection
-            color: Kirigami.Theme.backgroundColor
-            opacity: 0.3
-            visible: root.rowHovered
+            anchors.leftMargin: 1
+            anchors.rightMargin: 1
+            radius: 2
+            visible: root.selected || root.rowHovered
+            border.width: 1
+            border.color: root.selected ? "#7da2ce" : "#b8d6fb"
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: root.selected ? "#dcebfc" : "#f2f7fe" }
+                GradientStop { position: 1.0; color: root.selected ? "#c1dbfc" : "#e5f0fe" }
+            }
         }
     }
 

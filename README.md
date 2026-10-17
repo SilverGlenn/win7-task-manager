@@ -48,6 +48,20 @@ status values use the same sampling cycle; visible graphs advance once per
 refresh. Each sample uses the latest backend readings, whose native sampling
 rate determines when new values become available.
 
+### Handles and Threads
+
+**Handles** reads `/proc/sys/fs/file-nr` and displays allocated minus unused file
+handles. This represents open Linux file descriptions, using the Windows-style
+label. See the [Linux kernel file-handle documentation](https://docs.kernel.org/admin-guide/sysctl/fs.html#file-max-file-nr).
+
+**Threads** reads the total after the slash in `/proc/loadavg`'s fourth field:
+the system-wide scheduling entities, including process main threads. See
+[proc_loadavg(5)](https://man7.org/linux/man-pages/man5/proc_loadavg.5.html).
+
+Both counters use the selected update speed, remain frozen while Paused, and
+read again on F5. An unavailable or malformed reading displays **—**; the two
+sources recover independently on the next refresh.
+
 ## Build and run
 
 Build requirements include CMake 3.16+, a C++20 compiler, Qt 6.10+, KDE Frameworks
@@ -134,7 +148,8 @@ QT_QPA_PLATFORM=offscreen \
 ```
 
 The tests cover application metadata, page management, refresh timing,
-pause/manual refresh/resume, and frozen process values and membership. Qt's page
+pause/manual refresh/resume, frozen process values and membership, and system-count
+parsing, unavailable data, and recovery. Qt's page
 tests use `~/.qttest`; they need access to that test directory.
 
 Screenshot capture runs sequentially and exits when complete. It saves all five
@@ -161,7 +176,7 @@ assert (shots / "our_overview_paused.png").read_bytes() != (
 The interface uses Linux process and sensor data with Windows-style labels.
 Several reference UI elements remain preliminary:
 
-- Performance's Handles, Threads, and Windows kernel-memory fields are estimates.
+- Performance's Windows kernel-memory fields remain estimates.
 - Networking uses aggregate traffic, a nominal 100 Mbps link, a fixed Connected
   label, and a `wlp2s0` lookup for the optional wireless network name.
 - Target-window activation, minimize/maximize, tiling, and cascade behavior is

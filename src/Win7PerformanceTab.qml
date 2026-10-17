@@ -4,6 +4,7 @@
 
 import QtQuick
 import QtQuick.Layouts
+import org.kde.systemmonitor
 
 Item {
     id: root
@@ -17,7 +18,15 @@ Item {
 
     signal resourceMonitorClicked()
 
+    Win7SystemStatistics {
+        id: systemStatistics
+        Component.onCompleted: {
+            if (root.updateController && root.updateController.updateInterval > 0) refresh()
+        }
+    }
+
     function refreshNow() {
+        systemStatistics.refresh()
         if (!root.visible) return
         cpuCombinedGraph.pushSample()
         memHistoryGraph.pushSample()
@@ -318,10 +327,10 @@ Item {
                         columnSpacing: 8
 
                         Text { text: i18n("Handles"); font.family: "Segoe UI"; font.pixelSize: 12; color: "#000000" }
-                        Text { text: String(Math.max(1024, root.processCount * 256)); font.family: "Segoe UI"; font.pixelSize: 12; color: "#000000"; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight }
+                        Text { text: systemStatistics.handlesCount == null ? "—" : String(systemStatistics.handlesCount); font.family: "Segoe UI"; font.pixelSize: 12; color: "#000000"; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight }
 
                         Text { text: i18n("Threads"); font.family: "Segoe UI"; font.pixelSize: 12; color: "#000000" }
-                        Text { text: String(Math.max(64, root.processCount * 11)); font.family: "Segoe UI"; font.pixelSize: 12; color: "#000000"; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight }
+                        Text { text: systemStatistics.threadsCount == null ? "—" : String(systemStatistics.threadsCount); font.family: "Segoe UI"; font.pixelSize: 12; color: "#000000"; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight }
 
                         Text { text: i18n("Processes"); font.family: "Segoe UI"; font.pixelSize: 12; color: "#000000" }
                         Text { text: String(root.processCount); font.family: "Segoe UI"; font.pixelSize: 12; color: "#000000"; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight }

@@ -43,10 +43,15 @@ This guide describes the accepted Windows 7 UI baseline, its current implementat
   - Captures tabs and dialogs sequentially, using `Main.debugCaptureWindow` to select the intended dialog. Do not schedule independent capture steps: their timers can overlap and mislabel the images.
 - [`src/ToolsModel.h`](src/ToolsModel.h) & [`src/ToolsModel.cpp`](src/ToolsModel.cpp):
   - Exposes `Q_INVOKABLE void runCommand(const QString &command)` backed by `KIO::CommandLauncherJob` to power `File -> New Task (Run...)`.
-  - Provides external tool launching (`trigger(id)`) and themed dialog icons (`setWindowIconByName`). There are no Handles/Threads `/proc` helpers in the current implementation.
+  - Provides external tool launching (`trigger(id)`) and themed dialog icons (`setWindowIconByName`). Handles/Threads sampling belongs to `Win7SystemStatistics`.
 
 - [`src/Win7SnapshotModel.h`](src/Win7SnapshotModel.h) & [`src/Win7SnapshotModel.cpp`](src/Win7SnapshotModel.cpp):
   - Cache process/application model rows, header roles, and values until the shared update clock refreshes them. Stable PID identities preserve indexes and scroll position when rows change. Views must read the snapshot rather than the live backend to honor Paused.
+
+- [`src/Win7SystemStatistics.h`](src/Win7SystemStatistics.h) & [`src/Win7SystemStatistics.cpp`](src/Win7SystemStatistics.cpp):
+  - Read real system-wide Linux counts: Handles = allocated minus unused from `/proc/sys/fs/file-nr` (open file descriptions); Threads = the total after `/` in the fourth `/proc/loadavg` field.
+  - Expose sampled 64-bit counts as `QVariant` properties. Missing/malformed data becomes invalid and displays `—`; each source can fail or recover independently. Do not substitute estimates or clamp real zero values.
+  - Have no polling timer. `Win7PerformanceTab.refreshNow()` calls `refresh()` on each shared clock/manual refresh, before its visibility guard. Startup sampling happens only while unpaused. The alternative proc-root constructor supports fixture-based tests.
 
 ### QML Shell, Menus & Reusable Win7 Controls
 
@@ -88,7 +93,7 @@ This guide describes the accepted Windows 7 UI baseline, its current implementat
   - Uses `Process.ProcessDataModel` → `Win7SnapshotModel` → `Table.ProcessSortFilterModel` (`ViewOwn` by default, `ViewAll` when `Show processes from all users` is clicked) and `Process.ProcessController`. Select Columns, priority, affinity, properties, and termination confirmation use custom windows declared in this file.
   - Shows `CPU %` and `Memory %` with one decimal place. CPU is normalized against the backend maximum; memory is process KiB converted to bytes divided by `memory/physical/total`. The derived `memoryPercent` column sorts using `memory` and must never be sent as a backend attribute. `Win7ProcessFormat.js` handles percentage formatting and unavailable totals.
 - [`src/Win7PerformanceTab.qml`](src/Win7PerformanceTab.qml):
-  - Uses `Win7Sensor` wrappers around `Sensors.Sensor` for CPU, per-core CPU (`cpu/cpu*/usage`, `cpu/cpu*/system`), physical memory, cache, buffer, free, swap, and uptime. Handles/Threads and Windows kernel-memory fields are estimates derived from process/memory values; there is no `/proc` or `XMLHttpRequest` sampling here. Per-core history currently displays at most eight graphs. Resource Monitor switches to Overview.
+  - Uses `Win7Sensor` wrappers around `Sensors.Sensor` for CPU, per-core CPU (`cpu/cpu*/usage`, `cpu/cpu*/system`), physical memory, cache, buffer, free, swap, and uptime. Handles/Threads use `Win7SystemStatistics` for real `/proc` counts; Windows kernel-memory fields remain estimates. Procfs access stays in C++ rather than QML `XMLHttpRequest`. Per-core history currently displays at most eight graphs. Resource Monitor switches to Overview.
 - [`src/Win7NetworkingTab.qml`](src/Win7NetworkingTab.qml):
   - Uses `Win7Sensor` for aggregate `network/all/*` readings and `network/wlp2s0/*` for the optional wireless label/address. The graph scale uses powers of ten with a 1 Mbps minimum. The adapter table has Adapter Name, Network Utilization, Link Speed, and State columns; 100 Mbps and Connected are currently fixed display values.
 
@@ -123,7 +128,7 @@ This guide describes the accepted Windows 7 UI baseline, its current implementat
 
 ## 5. Verification and Baseline Documentation
 
-- Run `QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure`. The suites are `appstreamtest`, `TestPageManager`, and `TestWin7Updates`; the latter covers High/Normal/Low timing, pause/manual refresh/resume, frozen values/membership, and persistent row indexes. Qt page tests write to `~/.qttest` even when `XDG_DATA_HOME` is overridden.
+- Run `QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure`. The suites are `appstreamtest`, `TestPageManager`, `TestWin7Updates`, and `TestWin7SystemStatistics`. Update tests cover High/Normal/Low timing, pause/manual refresh/resume, frozen values/membership, and persistent row indexes. Statistics tests cover procfs parsing, 64-bit counts, independent failures/recovery, and values held until explicit refresh. Qt page tests write to `~/.qttest` even when `XDG_DATA_HOME` is overridden.
 - The screenshot command in section 1 also captures sorted/scrolled tables, dialogs, `our_<tab>_paused.png` / `our_<tab>_paused_again.png` for all five built-in tabs, and `our_overview_refreshed.png` / `our_overview_resumed.png`. Paused pairs should be byte-identical; the manually refreshed Overview should differ. See the comparison snippet in `README.md`.
 - `docs/screenshots/performance.png` records the accepted offscreen client-area appearance at 100% scale. Update it only after visually checking intentional UI changes.
 - Keep implementation status accurate: target-window management remains preliminary; Debug/UAC virtualization/dump creation are disabled; End Process Tree currently force-kills only the selected PID. Do not document these as complete features.

@@ -30,3 +30,9 @@ ecm_add_test(TEST_NAME TestWin7Updates
     ../src/Win7SnapshotModel.cpp
     LINK_LIBRARIES Qt6::Quick Qt6::Test
 )
+
+ecm_add_test(TEST_NAME TestWin7SystemStatistics
+    TestWin7SystemStatistics.cpp
+    ../src/Win7SystemStatistics.cpp
+    LINK_LIBRARIES Qt6::Qml Qt6::Test
+)

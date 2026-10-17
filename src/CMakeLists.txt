@@ -16,6 +16,8 @@ target_sources(plasma-systemmonitor PRIVATE
     CommandLineArguments.h
     Win7SnapshotModel.cpp
     Win7SnapshotModel.h
+    Win7SystemStatistics.cpp
+    Win7SystemStatistics.h
 )
 
 ecm_target_qml_sources(plasma-systemmonitor SOURCES

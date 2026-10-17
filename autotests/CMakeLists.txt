@@ -24,3 +24,9 @@ ecm_add_test(TEST_NAME TestPageManager
 )
 
 kconfig_target_kcfg_file(TestPageManager FILE ${CMAKE_SOURCE_DIR}/src/page/systemmonitor.kcfg CLASS_NAME Configuration MUTATORS GENERATE_PROPERTIES GENERATE_MOC SINGLETON QML_REGISTRATION)
+
+ecm_add_test(TEST_NAME TestWin7Updates
+    TestWin7Updates.cpp
+    ../src/Win7SnapshotModel.cpp
+    LINK_LIBRARIES Qt6::Quick Qt6::Test
+)

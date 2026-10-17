@@ -40,6 +40,8 @@ This repository has been customized to provide a pixel-accurate recreation of **
 7. **Menus, Context Menus, Dialogs & Status Bar (`src/Main.qml`, `src/GlobalMenu.qml`, `src/Win7Menu.qml`, `src/Win7MenuItem.qml`, `src/Win7MenuSeparator.qml`)**:
    - Pixel-accurate Windows 7 Aero menu bar (`File`, `Options`, `View`, contextual `Windows` on `Applications` tab, `Help`) and dropdown/context menus (`#979797` outer border, `2px` `#f5f5f5` inner frame, `26px` `#f1f1f1` icon/check gutter with `#e2e3e3`/`#ffffff` etched divider, `22x22` `#aecff7` check/radio indicator boxes, `#f2f7fd`->`#dde9f8` Aero hover highlight, `4px` drop shadow, `Create New Task` (`Run...`) dialog (`src/Win7NewTaskDialog.qml`), `About Windows Task Manager` dialog (`src/Win7AboutDialog.qml`), and 3-pane sunken status bar (`Processes: X`, `CPU Usage: Y%`, `Physical Memory: Z%`) with bottom-right resize grip dots).
 
+Update Speed applies to process tables, gauges, graphs, and the status bar: **High** (0.5 seconds), **Normal** (2 seconds, default), **Low** (4 seconds), and **Paused**. **Refresh Now** / **F5** takes one fresh sample even while paused.
+
 ### Building, Running & Testing
 
 > **Important Memory Constraint**: Always compile with `-j2` (`cmake --build build -j2`) rather than `-j$(nproc)` to avoid excessive RAM consumption, and do not leave the QEMU Windows 7 VM running while compiling.

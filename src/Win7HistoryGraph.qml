@@ -27,7 +27,7 @@ Item {
     property color gridColor: "#008040"
     property int gridSpacing: 12
     property int maxSamples: Math.max(200, Math.ceil(width / 2) + 1)
-    property int updateInterval: 1000
+    property int updateInterval: 2000
     property bool running: true
 
     property var primaryHistory: []

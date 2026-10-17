@@ -3,18 +3,20 @@
  */
 
 import QtQuick
+import org.kde.systemmonitor
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Window
 
 import org.kde.ksysguard.formatter as Formatter
 import org.kde.ksysguard.process as Process
-import org.kde.ksysguard.sensors as Sensors
 import org.kde.ksysguard.table as Table
 import "Win7ProcessFormat.js" as ProcessFormat
 
 Item {
     id: root
+
+    required property var updateController
 
     property bool showAllUsers: false
     property int selectedRow: 0
@@ -26,7 +28,7 @@ Item {
     readonly property int visibleProcessCount: procListView.count
     readonly property var debugCaptureWindow: selectColumnsWindow.visible ? selectColumnsWindow : propertiesWindow.visible ? propertiesWindow : null
 
-    Sensors.Sensor { id: physicalMemorySensor; sensorId: "memory/physical/total"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: physicalMemorySensor; sensorId: "memory/physical/total"; enabled: true }
 
     // Master catalog of selectable Win7 Process columns
     readonly property var allColumnCatalog: [
@@ -97,7 +99,7 @@ Item {
     }
 
     function updateCounts() {
-        root.totalProcessCount = allProcessesModel.rowCount()
+        root.totalProcessCount = allProcessesSnapshot.rowCount()
     }
 
     function applySort() {
@@ -152,6 +154,8 @@ Item {
     }
 
     function refreshNow() {
+        allProcessesSnapshot.refresh()
+        processSnapshot.refresh()
         filterModel.invalidate()
         root.applySort()
         root.updateCounts()
@@ -239,8 +243,15 @@ Item {
         enabledAttributes: ["pid"]
     }
 
+    Win7SnapshotModel {
+        id: allProcessesSnapshot
+        sourceModel: allProcessesModel
+        keyRole: Process.ProcessDataModel.PIDs
+        initialUpdatesEnabled: root.updateController ? root.updateController.updateInterval > 0 : false
+    }
+
     Connections {
-        target: allProcessesModel
+        target: allProcessesSnapshot
         function onRowsInserted() { root.updateCounts() }
         function onRowsRemoved() { root.updateCounts() }
         function onModelReset() { root.updateCounts() }
@@ -266,9 +277,16 @@ Item {
         }
     }
 
+    Win7SnapshotModel {
+        id: processSnapshot
+        sourceModel: processModel
+        keyRole: Process.ProcessDataModel.PIDs
+        initialUpdatesEnabled: root.updateController ? root.updateController.updateInterval > 0 : false
+    }
+
     Table.ProcessSortFilterModel {
         id: filterModel
-        sourceModel: processModel
+        sourceModel: processSnapshot
         viewMode: root.showAllUsers ? Table.ProcessSortFilterModel.ViewAll : Table.ProcessSortFilterModel.ViewOwn
         hiddenAttributes: {
             var hidden = []
@@ -290,14 +308,6 @@ Item {
             root.initialSortDone = true
             root.applySort()
         }
-    }
-
-    // Periodic live cell value refresh so CPU/Memory numbers update smoothly
-    Timer {
-        interval: 1000
-        running: root.visible
-        repeat: true
-        onTriggered: root.modelRevision++
     }
 
     Connections {

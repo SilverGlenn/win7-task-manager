@@ -4,19 +4,21 @@
 
 import QtQuick
 import QtQuick.Layouts
-import org.kde.ksysguard.sensors as Sensors
 
 Item {
     id: root
 
+    required property var updateController
+
     property bool showKernelTimes: false
     property bool perCpuHistory: false
-    property int updateInterval: 1000
+    property int updateInterval: 2000
     property int processCount: 0
 
     signal resourceMonitorClicked()
 
     function refreshNow() {
+        if (!root.visible) return
         cpuCombinedGraph.pushSample()
         memHistoryGraph.pushSample()
         for (var i = 0; i < perCoreRepeater.count; ++i) {
@@ -28,19 +30,19 @@ Item {
     }
 
     // Sensors
-    Sensors.Sensor { id: cpuUsageSensor; sensorId: "cpu/all/usage"; enabled: true }
-    Sensors.Sensor { id: cpuSystemSensor; sensorId: "cpu/all/system"; enabled: true }
-    Sensors.Sensor { id: cpuCoreCountSensor; sensorId: "cpu/all/coreCount"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: cpuUsageSensor; sensorId: "cpu/all/usage"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: cpuSystemSensor; sensorId: "cpu/all/system"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: cpuCoreCountSensor; sensorId: "cpu/all/coreCount"; enabled: true }
 
-    Sensors.Sensor { id: memTotalSensor; sensorId: "memory/physical/total"; enabled: true }
-    Sensors.Sensor { id: memUsedSensor; sensorId: "memory/physical/used"; enabled: true }
-    Sensors.Sensor { id: memUsedPctSensor; sensorId: "memory/physical/usedPercent"; enabled: true }
-    Sensors.Sensor { id: memCacheSensor; sensorId: "memory/physical/cache"; enabled: true }
-    Sensors.Sensor { id: memBufferSensor; sensorId: "memory/physical/buffer"; enabled: true }
-    Sensors.Sensor { id: memFreeSensor; sensorId: "memory/physical/free"; enabled: true }
-    Sensors.Sensor { id: swapTotalSensor; sensorId: "memory/swap/total"; enabled: true }
-    Sensors.Sensor { id: swapUsedSensor; sensorId: "memory/swap/used"; enabled: true }
-    Sensors.Sensor { id: uptimeSensor; sensorId: "os/system/uptime"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: memTotalSensor; sensorId: "memory/physical/total"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: memUsedSensor; sensorId: "memory/physical/used"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: memUsedPctSensor; sensorId: "memory/physical/usedPercent"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: memCacheSensor; sensorId: "memory/physical/cache"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: memBufferSensor; sensorId: "memory/physical/buffer"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: memFreeSensor; sensorId: "memory/physical/free"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: swapTotalSensor; sensorId: "memory/swap/total"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: swapUsedSensor; sensorId: "memory/swap/used"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: uptimeSensor; sensorId: "os/system/uptime"; enabled: true }
 
     readonly property real cpuUsageVal: Number(cpuUsageSensor.value) || 0
     readonly property real cpuSystemVal: Number(cpuSystemSensor.value) || 0
@@ -135,6 +137,7 @@ Item {
                     primaryColor: "#00ff00"
                     secondaryColor: "#ff0000"
                     updateInterval: root.updateInterval
+                    running: false
                 }
 
                 // Per-CPU history graphs when View -> CPU History -> One Graph Per CPU is active
@@ -158,13 +161,14 @@ Item {
                             primaryColor: "#00ff00"
                             secondaryColor: "#ff0000"
                             updateInterval: root.updateInterval
+                            running: false
 
-                            Sensors.Sensor {
+                            Win7Sensor { updateController: root.updateController;
                                 id: coreUsageSensor
                                 sensorId: "cpu/cpu" + coreGraph.index + "/usage"
                                 enabled: root.perCpuHistory
                             }
-                            Sensors.Sensor {
+                            Win7Sensor { updateController: root.updateController;
                                 id: coreSystemSensor
                                 sensorId: "cpu/cpu" + coreGraph.index + "/system"
                                 enabled: root.perCpuHistory && root.showKernelTimes
@@ -218,6 +222,7 @@ Item {
                     primaryColor: "#0080ff"
                     primaryLineWidth: 2
                     updateInterval: root.updateInterval
+                    running: false
                 }
             }
         }

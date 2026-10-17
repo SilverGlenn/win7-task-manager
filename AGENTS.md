@@ -44,6 +44,9 @@ This document provides complete context, architecture details, visual specificat
   - Exposes `Q_INVOKABLE void runCommand(const QString &command)` backed by `KIO::CommandLauncherJob` to power `File -> New Task (Run...)`.
   - Provides `/proc/sys/fs/file-nr` (`systemHandlesCount()`) and `/proc/loadavg` (`systemThreadsCount()`) helpers if needed, plus external tool launching (`trigger(id)`).
 
+- [`src/Win7SnapshotModel.h`](src/Win7SnapshotModel.h) & [`src/Win7SnapshotModel.cpp`](src/Win7SnapshotModel.cpp):
+  - Cache process/application model rows, header roles, and values until the shared update clock refreshes them. Stable PID identities preserve indexes and scroll position when rows change. Views must read the snapshot rather than the live backend to honor Paused.
+
 ### QML Shell, Menus & Reusable Win7 Controls
 - [`src/Main.qml`](src/Main.qml):
   - `397x421` default window dimensions matching the Windows 7 Task Manager client area.
@@ -59,6 +62,8 @@ This document provides complete context, architecture details, visual specificat
   - Win7 Aero command button with `75px` minimum implicit width and `23px` height for 9pt Segoe UI, per [Microsoft's control sizing guide](https://learn.microsoft.com/en-us/windows/win32/uxguide/vis-layout#recommended-sizing-and-spacing). Explicit padding/insets prevent the host Qt Quick theme from changing the geometry. Uses `3px` rounded corners, a shaded inner rim, `#f2f2f2`/`#ebebeb`/`#dddddd`/`#cfcfcf` split face gradient, layered cyan default ring, blue hover/pressed states, a keyboard focus rectangle, mnemonic underline rendering, and a UAC shield icon.
 - [`src/Win7GroupBox.qml`](src/Win7GroupBox.qml):
   - Pixel-accurate Win7 group box (`1px` `#d5dfe5` border with `3px` radius and `#000000` `Segoe UI` `12px` title interrupting the top border at `x: 9`).
+- [`src/Win7UpdateClock.qml`](src/Win7UpdateClock.qml) & [`src/Win7Sensor.qml`](src/Win7Sensor.qml):
+  - One shared refresh cycle uses 500ms (High), 2000ms (Normal/default), 4000ms (Low), or 0 (Paused). The clock samples sensors before refreshing table snapshots and graphs. Sensor values are latched between ticks; F5 samples once without leaving Paused. Tab graphs disable their independent timers.
 - [`src/Win7ScrollBar.qml`](src/Win7ScrollBar.qml):
   - Persistent `17px` Aero scrollbar with arrow buttons, a beveled thumb and grip. Processes reserves space for both axes so controls do not cover row values or one another.
 - [`src/Win7Gauge.qml`](src/Win7Gauge.qml):
@@ -96,3 +101,11 @@ This document provides complete context, architecture details, visual specificat
    - Always re-apply `sort(root.sortColumn, root.sortOrder)` inside `Connections { target: filterModel; function onColumnMappingChanged() { ... } }` and via a short `Timer` (`~700ms`) after `onRowsInserted` so rows are sorted after their initial attribute values arrive.
 3. **`ViewOwn` and `ViewUser` Require `"uid"` in `enabledAttributes`**:
    - `ProcessSortFilterModel::filterAcceptsRow()` checks `m_uidColumn`. Any `ProcessDataModel` paired with `ProcessSortFilterModel` using `ViewOwn`, `ViewUser`, or `ViewSystem` **must** include `"uid"` in `enabledAttributes` (and `"uid"` in `hiddenAttributes` so it doesn't take a visible column slot).
+
+---
+
+## 4. Current User-Local Installation
+
+- The installed prefix is `/home/siru/.local/lib/win7-task-manager`; the existing build is configured with that `CMAKE_INSTALL_PREFIX`. After a verified build, run `cmake --install build` to update the installed app.
+- `/home/siru/.local/bin/plasma-systemmonitor` wraps the installed executable and supplies its private QML import and data paths. Desktop launches use this wrapper, so rebuilding alone does not update the app the user opens from the Start menu.
+- Local overrides in `~/.local/share/applications/` and `~/.local/share/kglobalaccel/` keep the desktop ID `org.kde.plasma-systemmonitor.desktop`, display **Task Manager**, and use **Ctrl+Shift+Esc**. Preserve these overrides when reinstalling; copy them over the corresponding desktop files inside the private prefix after CMake installation.

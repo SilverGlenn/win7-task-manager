@@ -3,6 +3,7 @@
  */
 
 import QtQuick
+import org.kde.systemmonitor
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Window
@@ -14,6 +15,8 @@ import org.kde.ksysguard.table as Table
 
 Item {
     id: root
+
+    required property var updateController
 
     // 0 = Details, 1 = Large Icons, 2 = Small Icons
     property int viewStyle: 0
@@ -35,6 +38,8 @@ Item {
     }
 
     function refreshNow() {
+        appSnapshot.refresh()
+        fallbackSnapshot.refresh()
         fallbackFilterModel.invalidate()
         appSortModel.invalidate()
         root.applyTaskSort()
@@ -66,7 +71,7 @@ Item {
         if (!idx.valid) return []
         var srcIdx = appSortModel.mapToSource(idx)
         if (!srcIdx.valid) return []
-        return appModel.data(srcIdx, Process.ProcessDataModel.PIDs) || []
+        return appSnapshot.data(srcIdx, Process.ProcessDataModel.PIDs) || []
     }
 
     function currentSelectedName() {
@@ -87,22 +92,29 @@ Item {
         enabledAttributes: ["appName", "iconName", "menuId"]
     }
 
+    Win7SnapshotModel {
+        id: appSnapshot
+        sourceModel: appModel
+        keyRole: Process.ProcessDataModel.PIDs
+        initialUpdatesEnabled: root.updateController ? root.updateController.updateInterval > 0 : false
+    }
+
     KItemModels.KSortFilterProxyModel {
         id: appSortModel
-        sourceModel: appModel
+        sourceModel: appSnapshot
         sortRole: Process.ProcessDataModel.Value
         sortCaseSensitivity: Qt.CaseInsensitive
         sortColumn: 0
         sortOrder: root.sortOrder
         filterRowCallback: function(row, parent) {
-            if (appModel.columnCount(parent) <= 0) return false
-            var idx = appModel.index(row, 0, parent)
+            if (appSnapshot.columnCount(parent) <= 0) return false
+            var idx = appSnapshot.index(row, 0, parent)
             if (!idx.valid) return false
-            var appName = String(appModel.data(idx, Process.ProcessDataModel.Value) || "").trim()
+            var appName = String(appSnapshot.data(idx, Process.ProcessDataModel.Value) || "").trim()
             if (appName.length === 0) return false
-            if (appModel.columnCount(parent) > 2) {
-                var menuIdx = appModel.index(row, 2, parent)
-                var menuId = menuIdx.valid ? String(appModel.data(menuIdx, Process.ProcessDataModel.Value) || "") : ""
+            if (appSnapshot.columnCount(parent) > 2) {
+                var menuIdx = appSnapshot.index(row, 2, parent)
+                var menuId = menuIdx.valid ? String(appSnapshot.data(menuIdx, Process.ProcessDataModel.Value) || "") : ""
                 if (menuId === "session.slice" || menuId === "background.slice" || menuId === "services") return false
             }
             return true
@@ -157,9 +169,16 @@ Item {
         enabledAttributes: ["name", "pid", "command", "username", "usage", "memory", "uid"]
     }
 
+    Win7SnapshotModel {
+        id: fallbackSnapshot
+        sourceModel: fallbackProcessModel
+        keyRole: Process.ProcessDataModel.PIDs
+        initialUpdatesEnabled: root.updateController ? root.updateController.updateInterval > 0 : false
+    }
+
     Table.ProcessSortFilterModel {
         id: fallbackFilterModel
-        sourceModel: fallbackProcessModel
+        sourceModel: fallbackSnapshot
         viewMode: Table.ProcessSortFilterModel.ViewOwn
         hiddenAttributes: ["uid"]
     }
@@ -525,13 +544,13 @@ Item {
                         readonly property string taskIcon: {
                             var _rev = root.modelRevision
                             if (root.useAppModel) {
-                                if (appSortModel.columnCount() <= 0 || appModel.columnCount() <= 1 || index < 0 || index >= appSortModel.rowCount()) return "application-x-executable"
+                                if (appSortModel.columnCount() <= 0 || appSnapshot.columnCount() <= 1 || index < 0 || index >= appSortModel.rowCount()) return "application-x-executable"
                                 var idx = appSortModel.index(index, 0)
                                 if (!idx.valid) return "application-x-executable"
                                 var sIdx = appSortModel.mapToSource(idx)
                                 if (!sIdx.valid) return "application-x-executable"
-                                var iconIdx = appModel.index(sIdx.row, 1)
-                                return iconIdx.valid ? String(appModel.data(iconIdx, Process.ProcessDataModel.Value) || "application-x-executable") : "application-x-executable"
+                                var iconIdx = appSnapshot.index(sIdx.row, 1)
+                                return iconIdx.valid ? String(appSnapshot.data(iconIdx, Process.ProcessDataModel.Value) || "application-x-executable") : "application-x-executable"
                             } else {
                                 return taskTitle.split(" ")[0].toLowerCase()
                             }

@@ -4,28 +4,29 @@
 
 import QtQuick
 import QtQuick.Layouts
-import org.kde.ksysguard.sensors as Sensors
 import org.kde.ksysguard.formatter as Formatter
 
 Item {
     id: root
 
-    property int updateInterval: 1000
+    required property var updateController
+
+    property int updateInterval: 2000
     // 0 = Bytes Total, 1 = Bytes Sent, 2 = Bytes Received
     property int networkHistoryMode: 0
 
     function refreshNow() {
-        netHistoryGraph.pushSample()
+        if (root.visible) netHistoryGraph.pushSample()
     }
 
-    Sensors.Sensor { id: netDownSensor; sensorId: "network/all/download"; enabled: true }
-    Sensors.Sensor { id: netUpSensor; sensorId: "network/all/upload"; enabled: true }
-    Sensors.Sensor { id: netDownBitsSensor; sensorId: "network/all/downloadBits"; enabled: true }
-    Sensors.Sensor { id: netUpBitsSensor; sensorId: "network/all/uploadBits"; enabled: true }
-    Sensors.Sensor { id: netTotalDownSensor; sensorId: "network/all/totalDownload"; enabled: true }
-    Sensors.Sensor { id: netTotalUpSensor; sensorId: "network/all/totalUpload"; enabled: true }
-    Sensors.Sensor { id: wlanNameSensor; sensorId: "network/wlp2s0/network"; enabled: true }
-    Sensors.Sensor { id: wlanIpv4Sensor; sensorId: "network/wlp2s0/ipv4address"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: netDownSensor; sensorId: "network/all/download"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: netUpSensor; sensorId: "network/all/upload"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: netDownBitsSensor; sensorId: "network/all/downloadBits"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: netUpBitsSensor; sensorId: "network/all/uploadBits"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: netTotalDownSensor; sensorId: "network/all/totalDownload"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: netTotalUpSensor; sensorId: "network/all/totalUpload"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: wlanNameSensor; sensorId: "network/wlp2s0/network"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: wlanIpv4Sensor; sensorId: "network/wlp2s0/ipv4address"; enabled: true }
 
     // 100 Mbps nominal link speed (100,000,000 bps) for utilization %
     readonly property real linkSpeedBps: 100 * 1000 * 1000
@@ -116,6 +117,7 @@ Item {
                     primaryColor: "#ffff00"
                     secondaryColor: "#ff0000"
                     updateInterval: root.updateInterval
+                    running: false
                 }
             }
         }

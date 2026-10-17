@@ -3,21 +3,23 @@
  */
 
 import QtQuick
+import org.kde.systemmonitor
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Window
 
 import org.kde.ksysguard.formatter as Formatter
 import org.kde.ksysguard.process as Process
-import org.kde.ksysguard.sensors as Sensors
 import org.kde.ksysguard.table as Table
 import "Win7ProcessFormat.js" as ProcessFormat
 
 Item {
     id: root
 
+    required property var updateController
+
     property bool showKernelTimes: false
-    property int updateInterval: 1000
+    property int updateInterval: 2000
     property int processCount: 0
     property int selectedRow: 0
     property int sortColumn: 3 // Default sort by Memory % descending
@@ -28,33 +30,34 @@ Item {
     signal newTaskRequested()
 
     function refreshNow() {
-        overviewHistoryGraph.pushSample()
+        topProcSnapshot.refresh()
+        if (root.visible) overviewHistoryGraph.pushSample()
         topProcFilterModel.invalidate()
     }
 
     // Live Sensors matching overview.page
-    Sensors.Sensor { id: cpuUsageSensor; sensorId: "cpu/all/usage"; enabled: true }
-    Sensors.Sensor { id: cpuSystemSensor; sensorId: "cpu/all/system"; enabled: true }
-    Sensors.Sensor { id: cpuFreqSensor; sensorId: "cpu/all/averageFrequency"; enabled: true }
-    Sensors.Sensor { id: cpuCoresSensor; sensorId: "cpu/all/coreCount"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: cpuUsageSensor; sensorId: "cpu/all/usage"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: cpuSystemSensor; sensorId: "cpu/all/system"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: cpuFreqSensor; sensorId: "cpu/all/averageFrequency"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: cpuCoresSensor; sensorId: "cpu/all/coreCount"; enabled: true }
 
-    Sensors.Sensor { id: memTotalSensor; sensorId: "memory/physical/total"; enabled: true }
-    Sensors.Sensor { id: memUsedSensor; sensorId: "memory/physical/used"; enabled: true }
-    Sensors.Sensor { id: memUsedPctSensor; sensorId: "memory/physical/usedPercent"; enabled: true }
-    Sensors.Sensor { id: memCacheSensor; sensorId: "memory/physical/cache"; enabled: true }
-    Sensors.Sensor { id: swapTotalSensor; sensorId: "memory/swap/total"; enabled: true }
-    Sensors.Sensor { id: swapUsedSensor; sensorId: "memory/swap/used"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: memTotalSensor; sensorId: "memory/physical/total"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: memUsedSensor; sensorId: "memory/physical/used"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: memUsedPctSensor; sensorId: "memory/physical/usedPercent"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: memCacheSensor; sensorId: "memory/physical/cache"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: swapTotalSensor; sensorId: "memory/swap/total"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: swapUsedSensor; sensorId: "memory/swap/used"; enabled: true }
 
-    Sensors.Sensor { id: diskUsedSensor; sensorId: "disk/all/used"; enabled: true }
-    Sensors.Sensor { id: diskTotalSensor; sensorId: "disk/all/total"; enabled: true }
-    Sensors.Sensor { id: diskUsedPctSensor; sensorId: "disk/all/usedPercent"; enabled: true }
-    Sensors.Sensor { id: diskReadSensor; sensorId: "disk/all/read"; enabled: true }
-    Sensors.Sensor { id: diskWriteSensor; sensorId: "disk/all/write"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: diskUsedSensor; sensorId: "disk/all/used"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: diskTotalSensor; sensorId: "disk/all/total"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: diskUsedPctSensor; sensorId: "disk/all/usedPercent"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: diskReadSensor; sensorId: "disk/all/read"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: diskWriteSensor; sensorId: "disk/all/write"; enabled: true }
 
-    Sensors.Sensor { id: netDownSensor; sensorId: "network/all/download"; enabled: true }
-    Sensors.Sensor { id: netUpSensor; sensorId: "network/all/upload"; enabled: true }
-    Sensors.Sensor { id: gpuUsageSensor; sensorId: "gpu/all/usage"; enabled: true }
-    Sensors.Sensor { id: uptimeSensor; sensorId: "os/system/uptime"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: netDownSensor; sensorId: "network/all/download"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: netUpSensor; sensorId: "network/all/upload"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: gpuUsageSensor; sensorId: "gpu/all/usage"; enabled: true }
+    Win7Sensor { updateController: root.updateController; id: uptimeSensor; sensorId: "os/system/uptime"; enabled: true }
 
     readonly property real cpuUsageVal: Number(cpuUsageSensor.value) || 0
     readonly property real cpuSystemVal: Number(cpuSystemSensor.value) || 0
@@ -152,9 +155,16 @@ Item {
         enabledAttributes: ["name", "pid", "usage", "memory", "username", "uid"]
     }
 
+    Win7SnapshotModel {
+        id: topProcSnapshot
+        sourceModel: topProcModel
+        keyRole: Process.ProcessDataModel.PIDs
+        initialUpdatesEnabled: root.updateController ? root.updateController.updateInterval > 0 : false
+    }
+
     Table.ProcessSortFilterModel {
         id: topProcFilterModel
-        sourceModel: topProcModel
+        sourceModel: topProcSnapshot
         viewMode: Table.ProcessSortFilterModel.ViewUser
         hiddenAttributes: ["uid", "username"]
     }
@@ -167,13 +177,6 @@ Item {
             root.initialSortDone = true
             root.applyOverviewSort()
         }
-    }
-
-    Timer {
-        interval: 1000
-        running: root.visible
-        repeat: true
-        onTriggered: root.modelRevision++
     }
 
     Connections {
@@ -310,6 +313,7 @@ Item {
                     tertiaryColor: "#0080ff"
                     tertiaryLineWidth: 2
                     updateInterval: root.updateInterval
+                    running: false
                 }
             }
         }

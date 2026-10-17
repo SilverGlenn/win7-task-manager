@@ -14,11 +14,15 @@ target_sources(plasma-systemmonitor PRIVATE
     ToolsModel.h
     CommandLineArguments.cpp
     CommandLineArguments.h
+    Win7SnapshotModel.cpp
+    Win7SnapshotModel.h
 )
 
 ecm_target_qml_sources(plasma-systemmonitor SOURCES
     Main.qml
     GlobalMenu.qml
+    Win7UpdateClock.qml
+    Win7Sensor.qml
     Win7Button.qml
     Win7ProcessFormat.js
     Win7ScrollBar.qml

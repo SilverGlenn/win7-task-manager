@@ -17,7 +17,6 @@ import org.kde.coreaddons as KCoreAddons
 
 import org.kde.systemmonitor
 import org.kde.ksysguard.page as Page
-import org.kde.ksysguard.sensors as Sensors
 
 ApplicationWindow {
     id: app
@@ -37,8 +36,8 @@ ApplicationWindow {
     property bool hideWhenMinimized: false
     property bool showKernelTimes: false
     property bool perCpuHistory: false
-    // Update speed in ms: 500 = High, 1000 = Normal, 4000 = Low, 0 = Paused
-    property int updateInterval: 1000
+    // Windows 7 update speeds: High 0.5s, Normal 2s, Low 4s, Paused 0.
+    property int updateInterval: 2000
     property string currentTabId: "applications"
     property string debugOpenMenu: ""
     readonly property var debugCaptureWindow: debugOpenMenu === "dlg_newtask" ? newTaskDialog
@@ -48,12 +47,18 @@ ApplicationWindow {
     flags: alwaysOnTop ? (Qt.Window | Qt.WindowStaysOnTopHint) : Qt.Window
 
     // Status bar live sensors
-    Sensors.Sensor { id: statusCpuSensor; sensorId: "cpu/all/usage"; enabled: true }
-    Sensors.Sensor { id: statusMemSensor; sensorId: "memory/physical/usedPercent"; enabled: true }
+    Win7Sensor { updateController: refreshClock; id: statusCpuSensor; sensorId: "cpu/all/usage"; enabled: true }
+    Win7Sensor { updateController: refreshClock; id: statusMemSensor; sensorId: "memory/physical/usedPercent"; enabled: true }
 
     readonly property int statusCpuPct: Math.round(Number(statusCpuSensor.value) || 0)
     readonly property int statusMemPct: Math.round(Number(statusMemSensor.value) || 0)
     readonly property int statusProcessCount: processesTab.totalProcessCount
+
+    Win7UpdateClock {
+        id: refreshClock
+        updateInterval: app.updateInterval
+        onRefreshed: app.refreshViews()
+    }
 
     ToolsModel {
         id: toolsModel
@@ -152,6 +157,10 @@ ApplicationWindow {
     }
 
     function refreshCurrentTab() {
+        refreshClock.refreshNow()
+    }
+
+    function refreshViews() {
         overviewTab.refreshNow()
         applicationsTab.refreshNow()
         processesTab.refreshNow()
@@ -227,6 +236,18 @@ ApplicationWindow {
                     if (newTaskDialog.visible) newTaskDialog.close()
                     if (aboutDialog.visible) aboutDialog.close()
                     if (!menuId) return
+                    if (menuId === "pause_updates") {
+                        app.updateInterval = 0
+                        return
+                    }
+                    if (menuId === "refresh_updates") {
+                        app.refreshCurrentTab()
+                        return
+                    }
+                    if (menuId === "normal_updates") {
+                        app.updateInterval = 2000
+                        return
+                    }
                     if (menuId === "ctx_proc") {
                         processesTab.openContextMenuAt(120, 96)
                         return
@@ -409,6 +430,7 @@ ApplicationWindow {
 
                     // Tab Views Stack
                     Win7OverviewTab {
+                        updateController: refreshClock
                         id: overviewTab
                         anchors.fill: parent
                         anchors.margins: 1
@@ -425,6 +447,7 @@ ApplicationWindow {
                     }
 
                     Win7ApplicationsTab {
+                        updateController: refreshClock
                         id: applicationsTab
                         anchors.fill: parent
                         anchors.margins: 1
@@ -442,6 +465,7 @@ ApplicationWindow {
                     }
 
                     Win7ProcessesTab {
+                        updateController: refreshClock
                         id: processesTab
                         anchors.fill: parent
                         anchors.margins: 1
@@ -449,6 +473,7 @@ ApplicationWindow {
                     }
 
                     Win7PerformanceTab {
+                        updateController: refreshClock
                         id: performanceTab
                         anchors.fill: parent
                         anchors.margins: 1
@@ -463,6 +488,7 @@ ApplicationWindow {
                     }
 
                     Win7NetworkingTab {
+                        updateController: refreshClock
                         id: networkingTab
                         anchors.fill: parent
                         anchors.margins: 1
@@ -799,8 +825,8 @@ ApplicationWindow {
                 text: i18n("Normal")
                 checkable: true
                 radio: true
-                checked: app.updateInterval === 1000
-                onTriggered: app.updateInterval = 1000
+                checked: app.updateInterval === 2000
+                onTriggered: app.updateInterval = 2000
             }
             Win7MenuItem {
                 text: i18n("Low")

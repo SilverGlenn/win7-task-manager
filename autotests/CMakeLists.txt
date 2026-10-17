@@ -1,4 +1,4 @@
-find_package(Qt6 REQUIRED CONFIG COMPONENTS Test)
+find_package(Qt6 REQUIRED CONFIG COMPONENTS Test Network)
 
 include_directories(../src/page ${CMAKE_BINARY_DIR}/src/page)
 
@@ -35,4 +35,11 @@ ecm_add_test(TEST_NAME TestWin7SystemStatistics
     TestWin7SystemStatistics.cpp
     ../src/Win7SystemStatistics.cpp
     LINK_LIBRARIES Qt6::Qml Qt6::Test
+)
+
+ecm_add_test(TEST_NAME TestWin7NetworkProcesses
+    TestWin7NetworkProcesses.cpp
+    ../src/Win7NetworkConnections.cpp
+    ../src/Win7NetworkProcessModel.cpp
+    LINK_LIBRARIES Qt6::Qml Qt6::Gui Qt6::Concurrent Qt6::Network Qt6::Test
 )

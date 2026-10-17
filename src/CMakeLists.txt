@@ -18,6 +18,10 @@ target_sources(plasma-systemmonitor PRIVATE
     Win7SnapshotModel.h
     Win7SystemStatistics.cpp
     Win7SystemStatistics.h
+    Win7NetworkConnections.cpp
+    Win7NetworkConnections.h
+    Win7NetworkProcessModel.cpp
+    Win7NetworkProcessModel.h
 )
 
 ecm_target_qml_sources(plasma-systemmonitor SOURCES
@@ -39,6 +43,7 @@ ecm_target_qml_sources(plasma-systemmonitor SOURCES
     Win7ProcessesTab.qml
     Win7PerformanceTab.qml
     Win7NetworkingTab.qml
+    Win7NetworkProcessesView.qml
     Win7NewTaskDialog.qml
     Win7AboutDialog.qml
 )
@@ -49,6 +54,7 @@ target_link_libraries(plasma-systemmonitor PRIVATE
     Qt::Quick
     Qt::Widgets
     Qt::DBus
+    Qt::Concurrent
     KF6::I18n
     KF6::ConfigGui
     KF6::Crash

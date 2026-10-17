@@ -233,9 +233,14 @@ ApplicationWindow {
                     processesTab.closeContextMenu()
                     processesTab.resetHorizontalScroll()
                     overviewTab.resetHorizontalScroll()
+                    networkingTab.resetHorizontalScroll()
                     if (newTaskDialog.visible) newTaskDialog.close()
                     if (aboutDialog.visible) aboutDialog.close()
                     if (!menuId) return
+                    if (menuId === "network_processes_right") {
+                        networkingTab.scrollToLastColumn()
+                        return
+                    }
                     if (menuId === "pause_updates") {
                         app.updateInterval = 0
                         return
@@ -490,6 +495,10 @@ ApplicationWindow {
                     Win7NetworkingTab {
                         updateController: refreshClock
                         id: networkingTab
+                        onInspectProcessRequested: pid => {
+                            app.currentTabId = "processes"
+                            processesTab.selectProcessByPid(pid, "")
+                        }
                         anchors.fill: parent
                         anchors.margins: 1
                         visible: app.currentTabId === "networking"

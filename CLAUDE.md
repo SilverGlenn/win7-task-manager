@@ -53,6 +53,15 @@ This guide describes the accepted Windows 7 UI baseline, its current implementat
   - Expose sampled 64-bit counts as `QVariant` properties. Missing/malformed data becomes invalid and displays `—`; each source can fail or recover independently. Do not substitute estimates or clamp real zero values.
   - Have no polling timer. `Win7PerformanceTab.refreshNow()` calls `refresh()` on each shared clock/manual refresh, before its visibility guard. Startup sampling happens only while unpaused. The alternative proc-root constructor supports fixture-based tests.
 
+- [`src/Win7NetworkProcessModel.h`](src/Win7NetworkProcessModel.h) & [`src/Win7NetworkProcessModel.cpp`](src/Win7NetworkProcessModel.cpp):
+  - Consume the existing `ksgrd_network_helper` one-second TCP/UDP byte reports. Rates use the latest report; cumulative totals add each report exactly once. No permission or capability changes are performed. Unavailable rates/totals display `—`.
+  - Start monitoring on the first Networking visit and keep collecting until exit. Publish display rows only through the shared refresh/manual clock; sorting uses the displayed snapshot. Helper output and background scan completion must never publish rows directly, or Paused breaks.
+  - Use PID plus `/proc/<pid>/stat` start time to prevent inherited totals after PID reuse. Show connected processes and processes with traffic during the past ten seconds.
+  - Run connection scans via Qt Concurrent, guarded by `m_scanPending` until the watcher's finished handler consumes the result. Do not replace a finished future before its queued completion signal is handled.
+- [`src/Win7NetworkConnections.h`](src/Win7NetworkConnections.h) & [`src/Win7NetworkConnections.cpp`](src/Win7NetworkConnections.cpp):
+  - Read IPv4/IPv6 TCP/UDP sockets through `NETLINK_SOCK_DIAG` and map socket inodes to readable `/proc/<pid>/fd` entries on a background thread. TCP activity ages identify the latest observed peer. A single connected UDP peer is identifiable; multiple UDP peers and unconnected UDP must not be guessed.
+  - Last IP is best effort; short-lived sockets and permission-limited descriptor ownership may be unavailable. Preserve the latest observed address while the process lives. Listening sockets do not count as connected peers.
+
 ### QML Shell, Menus & Reusable Win7 Controls
 
 - [`src/Main.qml`](src/Main.qml):
@@ -95,7 +104,10 @@ This guide describes the accepted Windows 7 UI baseline, its current implementat
 - [`src/Win7PerformanceTab.qml`](src/Win7PerformanceTab.qml):
   - Uses `Win7Sensor` wrappers around `Sensors.Sensor` for CPU, per-core CPU (`cpu/cpu*/usage`, `cpu/cpu*/system`), physical memory, cache, buffer, free, swap, and uptime. Handles/Threads use `Win7SystemStatistics` for real `/proc` counts; Windows kernel-memory fields remain estimates. Procfs access stays in C++ rather than QML `XMLHttpRequest`. Per-core history currently displays at most eight graphs. Resource Monitor switches to Overview.
 - [`src/Win7NetworkingTab.qml`](src/Win7NetworkingTab.qml):
+  - Keeps three vertically stacked sections visible: graph, Processes, Devices. Proportional heights and minimum sizes support the original 397×421 client and larger windows; there is no section-switching control.
   - Uses `Win7Sensor` for aggregate `network/all/*` readings and `network/wlp2s0/*` for the optional wireless label/address. The graph scale uses powers of ten with a 1 Mbps minimum. The adapter table has Adapter Name, Network Utilization, Link Speed, and State columns; 100 Mbps and Connected are currently fixed display values.
+- [`src/Win7NetworkProcessesView.qml`](src/Win7NetworkProcessesView.qml):
+  - Presents sortable/resizable Image Name, PID, Send, Receive, Total, Sent, Received, Connections, Last IP, Port, and Protocol columns. Both axes reserve Aero scrollbar space. The footer shows the selected peer and Go to Process; double-clicking also selects the PID in the Processes tab.
 
 ---
 
@@ -128,8 +140,9 @@ This guide describes the accepted Windows 7 UI baseline, its current implementat
 
 ## 5. Verification and Baseline Documentation
 
-- Run `QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure`. The suites are `appstreamtest`, `TestPageManager`, `TestWin7Updates`, and `TestWin7SystemStatistics`. Update tests cover High/Normal/Low timing, pause/manual refresh/resume, frozen values/membership, and persistent row indexes. Statistics tests cover procfs parsing, 64-bit counts, independent failures/recovery, and values held until explicit refresh. Qt page tests write to `~/.qttest` even when `XDG_DATA_HOME` is overridden.
+- Run `QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure`. The suites are `appstreamtest`, `TestPageManager`, `TestWin7Updates`, `TestWin7SystemStatistics`, and `TestWin7NetworkProcesses`. Update tests cover High/Normal/Low timing, pause/manual refresh/resume, frozen values/membership, and persistent row indexes. Statistics tests cover procfs parsing, 64-bit counts, independent failures/recovery, and values held until explicit refresh. Network tests cover exact byte accounting, pause, malformed/unavailable data, PID reuse, peer attribution, and real IPv4/IPv6 loopback sockets. Qt page tests write to `~/.qttest` even when `XDG_DATA_HOME` is overridden.
 - The screenshot command in section 1 also captures sorted/scrolled tables, dialogs, `our_<tab>_paused.png` / `our_<tab>_paused_again.png` for all five built-in tabs, and `our_overview_refreshed.png` / `our_overview_resumed.png`. Paused pairs should be byte-identical; the manually refreshed Overview should differ. See the comparison snippet in `README.md`.
+- Networking adds `our_network_processes_scrolled.png` and a 780×660 `our_networking_large.png` to verify all three stacked sections and the remote-IP columns. These can contain live peer IPs and the wireless network name; keep local QA images out of commits.
 - `docs/screenshots/performance.png` records the accepted offscreen client-area appearance at 100% scale. Update it only after visually checking intentional UI changes.
 - Keep implementation status accurate: target-window management remains preliminary; Debug/UAC virtualization/dump creation are disabled; End Process Tree currently force-kills only the selected PID. Do not document these as complete features.
 - The local wrapper, Task Manager name, and Ctrl+Shift+Esc registration are user configuration. The checked-in desktop template still uses System Monitor / Meta+Esc, so plain CMake installation on another machine does not reproduce those local overrides.

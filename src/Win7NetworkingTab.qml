@@ -12,10 +12,18 @@ Item {
     required property var updateController
 
     property int updateInterval: 2000
+    signal inspectProcessRequested(int pid, string name)
     // 0 = Bytes Total, 1 = Bytes Sent, 2 = Bytes Received
     property int networkHistoryMode: 0
 
+    function resetHorizontalScroll() { processView.resetHorizontalScroll() }
+    function scrollToLastColumn() { processView.scrollToLastColumn() }
+
+    onVisibleChanged: if (visible) processView.startMonitoring()
+    Component.onCompleted: if (visible) processView.startMonitoring()
+
     function refreshNow() {
+        processView.refreshNow()
         if (root.visible) netHistoryGraph.pushSample()
     }
 
@@ -58,14 +66,15 @@ Item {
         anchors.rightMargin: 11
         anchors.topMargin: 8
         anchors.bottomMargin: 11
-        spacing: 10
+        spacing: 6
 
         // Top: Network Adapter History GroupBox matching Win7 Task Manager Networking tab
         Win7GroupBox {
             title: root.adapterDisplayName
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.minimumHeight: 160
+            Layout.preferredHeight: root.height * 0.28
+            Layout.minimumHeight: 85
             topPadding: 18
             leftPadding: 8
             rightPadding: 8
@@ -122,169 +131,198 @@ Item {
             }
         }
 
-        // Bottom: Classic Win7 Networking Adapter ListView table
-        Rectangle {
-            id: netTableContainer
+        Win7GroupBox {
+            title: i18n("Processes")
             Layout.fillWidth: true
-            Layout.preferredHeight: 112
-            Layout.minimumHeight: 96
-            color: "#ffffff"
-            border.width: 1
-            border.color: "#828790"
-            clip: true
+            Layout.fillHeight: true
+            Layout.preferredHeight: root.height * 0.48
+            Layout.minimumHeight: 133
+            topPadding: 16
+            leftPadding: 8
+            rightPadding: 8
+            bottomPadding: 6
 
-            property var columnWidths: [115, 92, 68, 72]
-
-            ColumnLayout {
+            Win7NetworkProcessesView {
+                id: processView
                 anchors.fill: parent
-                anchors.margins: 1
-                spacing: 0
+                updateController: root.updateController
+                onInspectProcessRequested: (pid, name) => root.inspectProcessRequested(pid, name)
+            }
+        }
 
-                // Win7 Table Header (25px tall) with adjustable column widths
-                Rectangle {
-                    id: netHeaderBar
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 25
-                    gradient: Gradient {
-                        GradientStop { position: 0.0; color: "#ffffff" }
-                        GradientStop { position: 0.45; color: "#f7f8fa" }
-                        GradientStop { position: 0.92; color: "#f1f2f4" }
-                        GradientStop { position: 0.96; color: "#d5d5d5" }
-                        GradientStop { position: 1.0; color: "#fbfbfb" }
-                    }
+        Win7GroupBox {
+            title: i18n("Devices")
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.preferredHeight: root.height * 0.20
+            Layout.minimumHeight: 68
+            topPadding: 16
+            leftPadding: 8
+            rightPadding: 8
+            bottomPadding: 6
 
-                    Row {
-                        anchors.fill: parent
-                        spacing: 0
+            // Classic Win7 Networking adapter table.
+            Rectangle {
+                id: netTableContainer
+                anchors.fill: parent
+                color: "#ffffff"
+                border.width: 1
+                border.color: "#828790"
+                clip: true
 
-                        Repeater {
-                            model: [
-                                { title: i18n("Adapter Name"), align: Text.AlignLeft },
-                                { title: i18n("Network Utilization"), align: Text.AlignRight },
-                                { title: i18n("Link Speed"), align: Text.AlignRight },
-                                { title: i18n("State"), align: Text.AlignLeft }
-                            ]
+                property var columnWidths: [115, 92, 68, 72]
 
-                            Item {
-                                id: netColHeader
-                                required property var modelData
-                                required property int index
-                                width: netTableContainer.columnWidths[index] || 75
-                                height: parent.height
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 1
+                    spacing: 0
 
-                                Text {
-                                    anchors.fill: parent
-                                    anchors.leftMargin: 5
-                                    anchors.rightMargin: 5
-                                    verticalAlignment: Text.AlignVCenter
-                                    horizontalAlignment: modelData.align
-                                    text: modelData.title
-                                    elide: Text.ElideRight
-                                    font.family: "Segoe UI"
-                                    font.pixelSize: 12
-                                    color: "#000000"
-                                }
+                    // Win7 Table Header (25px tall) with adjustable column widths
+                    Rectangle {
+                        id: netHeaderBar
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 25
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: "#ffffff" }
+                            GradientStop { position: 0.45; color: "#f7f8fa" }
+                            GradientStop { position: 0.92; color: "#f1f2f4" }
+                            GradientStop { position: 0.96; color: "#d5d5d5" }
+                            GradientStop { position: 1.0; color: "#fbfbfb" }
+                        }
 
-                                Rectangle {
-                                    anchors.right: parent.right
-                                    anchors.top: parent.top
-                                    anchors.bottom: parent.bottom
-                                    anchors.bottomMargin: 1
-                                    width: 1
-                                    color: "#e5e5e5"
-                                }
+                        Row {
+                            anchors.fill: parent
+                            spacing: 0
 
-                                MouseArea {
-                                    anchors.right: parent.right
-                                    anchors.top: parent.top
-                                    anchors.bottom: parent.bottom
-                                    width: 6
-                                    cursorShape: Qt.SplitHCursor
-                                    preventStealing: true
-                                    property real startX: 0
-                                    property real startW: 0
-                                    onPressed: mouse => {
-                                        startX = mapToItem(netHeaderBar, mouse.x, 0).x
-                                        startW = netTableContainer.columnWidths[netColHeader.index]
+                            Repeater {
+                                model: [
+                                    { title: i18n("Adapter Name"), align: Text.AlignLeft },
+                                    { title: i18n("Network Utilization"), align: Text.AlignRight },
+                                    { title: i18n("Link Speed"), align: Text.AlignRight },
+                                    { title: i18n("State"), align: Text.AlignLeft }
+                                ]
+
+                                Item {
+                                    id: netColHeader
+                                    required property var modelData
+                                    required property int index
+                                    width: netTableContainer.columnWidths[index] || 75
+                                    height: parent.height
+
+                                    Text {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 5
+                                        anchors.rightMargin: 5
+                                        verticalAlignment: Text.AlignVCenter
+                                        horizontalAlignment: modelData.align
+                                        text: modelData.title
+                                        elide: Text.ElideRight
+                                        font.family: "Segoe UI"
+                                        font.pixelSize: 12
+                                        color: "#000000"
                                     }
-                                    onPositionChanged: mouse => {
-                                        if (pressed) {
-                                            var curX = mapToItem(netHeaderBar, mouse.x, 0).x
-                                            var next = netTableContainer.columnWidths.slice()
-                                            next[netColHeader.index] = Math.max(42, Math.round(startW + (curX - startX)))
-                                            netTableContainer.columnWidths = next
+
+                                    Rectangle {
+                                        anchors.right: parent.right
+                                        anchors.top: parent.top
+                                        anchors.bottom: parent.bottom
+                                        anchors.bottomMargin: 1
+                                        width: 1
+                                        color: "#e5e5e5"
+                                    }
+
+                                    MouseArea {
+                                        anchors.right: parent.right
+                                        anchors.top: parent.top
+                                        anchors.bottom: parent.bottom
+                                        width: 6
+                                        cursorShape: Qt.SplitHCursor
+                                        preventStealing: true
+                                        property real startX: 0
+                                        property real startW: 0
+                                        onPressed: mouse => {
+                                            startX = mapToItem(netHeaderBar, mouse.x, 0).x
+                                            startW = netTableContainer.columnWidths[netColHeader.index]
+                                        }
+                                        onPositionChanged: mouse => {
+                                            if (pressed) {
+                                                var curX = mapToItem(netHeaderBar, mouse.x, 0).x
+                                                var next = netTableContainer.columnWidths.slice()
+                                                next[netColHeader.index] = Math.max(42, Math.round(startW + (curX - startX)))
+                                                netTableContainer.columnWidths = next
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                }
 
-                // Adapter Row: Primary Interface matching Win7 VM (crop_networking.png)
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 18
-                    color: "#ffffff"
+                    // Adapter Row: Primary Interface matching Win7 VM (crop_networking.png)
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 18
+                        color: "#ffffff"
 
-                    Row {
-                        anchors.fill: parent
-                        spacing: 0
+                        Row {
+                            anchors.fill: parent
+                            spacing: 0
 
-                        Text {
-                            width: netTableContainer.columnWidths[0]
-                            height: parent.height
-                            verticalAlignment: Text.AlignVCenter
-                            leftPadding: 5
-                            rightPadding: 5
-                            text: root.adapterDisplayName
-                            elide: Text.ElideRight
-                            font.family: "Segoe UI"
-                            font.pixelSize: 12
-                            color: "#000000"
-                        }
-                        Text {
-                            width: netTableContainer.columnWidths[1]
-                            height: parent.height
-                            verticalAlignment: Text.AlignVCenter
-                            leftPadding: 5
-                            rightPadding: 5
-                            horizontalAlignment: Text.AlignRight
-                            text: root.utilizationPct < 0.01 && root.totalBps > 0 ? "0.01 %" : Math.round(root.utilizationPct) + " %"
-                            elide: Text.ElideRight
-                            font.family: "Segoe UI"
-                            font.pixelSize: 12
-                            color: "#000000"
-                        }
-                        Text {
-                            width: netTableContainer.columnWidths[2]
-                            height: parent.height
-                            verticalAlignment: Text.AlignVCenter
-                            leftPadding: 5
-                            rightPadding: 5
-                            horizontalAlignment: Text.AlignRight
-                            text: "100 Mbps"
-                            elide: Text.ElideRight
-                            font.family: "Segoe UI"
-                            font.pixelSize: 12
-                            color: "#000000"
-                        }
-                        Text {
-                            width: netTableContainer.columnWidths[3]
-                            height: parent.height
-                            verticalAlignment: Text.AlignVCenter
-                            leftPadding: 5
-                            rightPadding: 5
-                            text: i18n("Connected")
-                            elide: Text.ElideRight
-                            font.family: "Segoe UI"
-                            font.pixelSize: 12
-                            color: "#000000"
+                            Text {
+                                width: netTableContainer.columnWidths[0]
+                                height: parent.height
+                                verticalAlignment: Text.AlignVCenter
+                                leftPadding: 5
+                                rightPadding: 5
+                                text: root.adapterDisplayName
+                                elide: Text.ElideRight
+                                font.family: "Segoe UI"
+                                font.pixelSize: 12
+                                color: "#000000"
+                            }
+                            Text {
+                                width: netTableContainer.columnWidths[1]
+                                height: parent.height
+                                verticalAlignment: Text.AlignVCenter
+                                leftPadding: 5
+                                rightPadding: 5
+                                horizontalAlignment: Text.AlignRight
+                                text: root.utilizationPct < 0.01 && root.totalBps > 0 ? "0.01 %" : Math.round(root.utilizationPct) + " %"
+                                elide: Text.ElideRight
+                                font.family: "Segoe UI"
+                                font.pixelSize: 12
+                                color: "#000000"
+                            }
+                            Text {
+                                width: netTableContainer.columnWidths[2]
+                                height: parent.height
+                                verticalAlignment: Text.AlignVCenter
+                                leftPadding: 5
+                                rightPadding: 5
+                                horizontalAlignment: Text.AlignRight
+                                text: "100 Mbps"
+                                elide: Text.ElideRight
+                                font.family: "Segoe UI"
+                                font.pixelSize: 12
+                                color: "#000000"
+                            }
+                            Text {
+                                width: netTableContainer.columnWidths[3]
+                                height: parent.height
+                                verticalAlignment: Text.AlignVCenter
+                                leftPadding: 5
+                                rightPadding: 5
+                                text: i18n("Connected")
+                                elide: Text.ElideRight
+                                font.family: "Segoe UI"
+                                font.pixelSize: 12
+                                color: "#000000"
+                            }
                         }
                     }
-                }
 
-                Item { Layout.fillHeight: true }
+                    Item { Layout.fillHeight: true }
+                }
             }
         }
     }

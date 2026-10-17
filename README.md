@@ -17,7 +17,7 @@ and graphs, with an additional Overview tab. The executable and desktop ID remai
 | Applications | Application tasks from systemd application groups, with a user-process fallback, task actions, and three view modes. |
 | Processes | Sortable, resizable columns, CPU and memory percentages, process termination, priority, affinity, and properties dialogs. |
 | Performance | Combined or up to eight per-core CPU graphs, optional kernel-time traces, memory history, and system statistics. |
-| Networking | Aggregate traffic history with automatic scaling and a Windows-style adapter table. |
+| Networking | Three stacked sections: traffic history, processes using the network, and devices. |
 
 Overview and Processes both show **CPU %** and **Memory %** to one decimal place.
 CPU is normalized against whole-system capacity. Memory is the process share of
@@ -62,10 +62,37 @@ Both counters use the selected update speed, remain frozen while Paused, and
 read again on F5. An unavailable or malformed reading displays **—**; the two
 sources recover independently on the next refresh.
 
+### Network processes
+
+Networking keeps the graph, **Processes**, and **Devices** visible together.
+The process table shows Image Name, PID, Send/Receive/Total rates, Sent/Received
+session totals, Connections, Last IP, Port, and Protocol. Columns can be sorted,
+resized, and scrolled horizontally. Double-click a row or choose **Go to Process**
+to select it on the Processes tab.
+
+Traffic comes from KDE's existing `ksgrd_network_helper`, which reports TCP/UDP
+IPv4/IPv6 bytes once per second. Monitoring starts on the first visit to
+Networking and continues until the app closes, including time on other tabs and
+while Paused. Display updates still follow the selected update speed; F5 samples
+the latest data. Totals count bytes observed during this monitoring session.
+Rows show processes with connected sockets or traffic in the past ten seconds.
+
+**Last IP** is the latest observed TCP peer, or a single identifiable connected
+UDP peer. It can be unavailable for short-lived connections, unconnected UDP,
+or processes whose descriptors are inaccessible to your user. It is a best-effort
+observation, not a connection log. Socket details come from Linux socket
+diagnostics and `/proc` without elevating the app.
+
+The helper must already have packet-capture access, normally supplied by its
+distribution package. The app does not change permissions or capabilities.
+If traffic collection is unavailable, rates show **—** and readable connection
+details remain visible. See [KDE's network-helper documentation](https://github.com/KDE/libksysguard/blob/Plasma/6.6/processcore/plugins/network/README.md).
+
 ## Build and run
 
 Build requirements include CMake 3.16+, a C++20 compiler, Qt 6.10+, KDE Frameworks
-6.24+, and KSysGuard 6.6+. Qt Quick Controls, Kirigami, and the KSysGuard sensor
+6.24+, and KSysGuard 6.6+. Qt Concurrent is required for background connection
+scans; tests also use Qt Network. Qt Quick Controls, Kirigami, and the KSysGuard sensor
 and process QML modules are needed at runtime. See [CMakeLists.txt](CMakeLists.txt)
 for the complete dependency list.
 
@@ -149,12 +176,14 @@ QT_QPA_PLATFORM=offscreen \
 
 The tests cover application metadata, page management, refresh timing,
 pause/manual refresh/resume, frozen process values and membership, and system-count
-parsing, unavailable data, and recovery. Qt's page
+parsing, unavailable data, and recovery. Network tests cover exact byte totals,
+paused snapshots, PID reuse, peer attribution, and live IPv4/IPv6 loopback sockets. Qt's page
 tests use `~/.qttest`; they need access to that test directory.
 
 Screenshot capture runs sequentially and exits when complete. It saves all five
 tabs, sorted/scrolled tables, menus, context menus, dialogs, and paired paused
-captures. Main client images are 397×421; dialogs use their own dimensions.
+captures. Main client images are 397×421; `our_networking_large.png` also checks
+the three-section layout at 780×660. Dialogs use their own dimensions.
 The following check verifies that every built-in tab stayed frozen and that a
 manual refresh changed Overview:
 

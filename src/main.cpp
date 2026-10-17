@@ -167,6 +167,10 @@ int main(int argc, char **argv)
 
     const QString shotDir = qEnvironmentVariable("WIN7_SCREENSHOT_DIR");
     if (!shotDir.isEmpty() && !engine.rootObjects().isEmpty()) {
+        if (!QDir().mkpath(shotDir)) {
+            qWarning() << "Could not create screenshot directory:" << shotDir;
+            return 1;
+        }
         QObject *rootObj = engine.rootObjects().first();
         auto *quickWin = qobject_cast<QQuickWindow *>(rootObj);
         if (quickWin) {
@@ -175,6 +179,7 @@ int main(int argc, char **argv)
                 QString menuId;
                 QString fileName;
                 bool grabSecondaryWindow = false;
+                QSize windowSize = QSize(397, 421);
             };
             const QList<CaptureStep> steps = {
                 {QStringLiteral("overview"), QString(), QStringLiteral("our_overview.png"), false},
@@ -187,6 +192,8 @@ int main(int argc, char **argv)
                 {QStringLiteral("processes"), QStringLiteral("scroll_proc_right"), QStringLiteral("our_processes_scrolled.png"), false},
                 {QStringLiteral("performance"), QString(), QStringLiteral("our_performance.png"), false},
                 {QStringLiteral("networking"), QString(), QStringLiteral("our_networking.png"), false},
+                {QStringLiteral("networking"), QStringLiteral("network_processes_right"), QStringLiteral("our_network_processes_scrolled.png"), false},
+                {QStringLiteral("networking"), QString(), QStringLiteral("our_networking_large.png"), false, QSize(780, 660)},
                 {QStringLiteral("overview"), QStringLiteral("pause_updates"), QStringLiteral("our_overview_paused.png"), false},
                 {QStringLiteral("overview"), QStringLiteral("pause_updates"), QStringLiteral("our_overview_paused_again.png"), false},
                 {QStringLiteral("applications"), QStringLiteral("pause_updates"), QStringLiteral("our_applications_paused.png"), false},
@@ -219,6 +226,7 @@ int main(int argc, char **argv)
                     const auto step = steps.at(stepIndex++);
                     const bool lastStep = stepIndex == steps.size();
                     rootObj->setProperty("debugOpenMenu", QString());
+                    quickWin->resize(step.windowSize);
                     rootObj->setProperty("currentTabId", step.tabId);
                     QTimer::singleShot(200, Qt::PreciseTimer, quickWin, [quickWin, rootObj, step, lastStep, shotDir, captureTimer]() {
                         rootObj->setProperty("debugOpenMenu", step.menuId);

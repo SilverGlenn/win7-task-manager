@@ -67,6 +67,16 @@ Item {
     readonly property int cachedMemMB: Math.round((Number(memCacheSensor.value) || 0) / (1024 * 1024))
     readonly property int swapTotalMB: Math.round((Number(swapTotalSensor.value) || 0) / (1024 * 1024))
     readonly property int swapUsedMB: Math.round((Number(swapUsedSensor.value) || 0) / (1024 * 1024))
+    readonly property bool gpuUsageAvailable: sensorValueAvailable(gpuUsageSensor.value)
+    readonly property real gpuUsageVal: gpuUsageAvailable ? Math.min(100, Number(gpuUsageSensor.value)) : 0
+    readonly property bool swapUsageAvailable: sensorValueAvailable(swapTotalSensor.value) && sensorValueAvailable(swapUsedSensor.value)
+    readonly property real swapUsedPct: swapUsageAvailable && Number(swapTotalSensor.value) > 0
+        ? Math.min(100, Number(swapUsedSensor.value) * 100 / Number(swapTotalSensor.value)) : 0
+    readonly property int gaugeWidth: Math.max(58, Math.min(74, Math.floor((width - 29) / 9)))
+
+    function sensorValueAvailable(value) {
+        return value !== undefined && value !== null && value !== "" && isFinite(Number(value)) && Number(value) >= 0
+    }
 
     readonly property real diskUsedGB: (Number(diskUsedSensor.value) || 0) / (1024 * 1024 * 1024)
     readonly property real diskTotalGB: (Number(diskTotalSensor.value) || 0) / (1024 * 1024 * 1024)
@@ -246,7 +256,7 @@ Item {
         anchors.bottomMargin: 11
         spacing: 6
 
-        // Row 1: Classic Win7 CPU Gauge + Memory Gauge + Combined Resource History
+        // Row 1: CPU, GPU, RAM, SWAP gauges followed by resource history.
         RowLayout {
             Layout.fillWidth: true
             Layout.preferredHeight: 80
@@ -255,9 +265,9 @@ Item {
 
             Win7GroupBox {
                 title: i18n("CPU")
-                Layout.preferredWidth: 74
-                Layout.minimumWidth: 74
-                Layout.maximumWidth: 74
+                Layout.preferredWidth: root.gaugeWidth
+                Layout.minimumWidth: root.gaugeWidth
+                Layout.maximumWidth: root.gaugeWidth
                 Layout.fillHeight: true
                 topPadding: 17
                 leftPadding: 7
@@ -274,10 +284,28 @@ Item {
             }
 
             Win7GroupBox {
-                title: i18n("Memory")
-                Layout.preferredWidth: 74
-                Layout.minimumWidth: 74
-                Layout.maximumWidth: 74
+                title: i18n("GPU")
+                Layout.preferredWidth: root.gaugeWidth
+                Layout.minimumWidth: root.gaugeWidth
+                Layout.maximumWidth: root.gaugeWidth
+                Layout.fillHeight: true
+                topPadding: 17
+                leftPadding: 7
+                rightPadding: 7
+                bottomPadding: 6
+
+                Win7Gauge {
+                    anchors.fill: parent
+                    value: root.gpuUsageVal
+                    displayText: root.gpuUsageAvailable ? Math.round(root.gpuUsageVal) + " %" : "—"
+                }
+            }
+
+            Win7GroupBox {
+                title: i18n("RAM")
+                Layout.preferredWidth: root.gaugeWidth
+                Layout.minimumWidth: root.gaugeWidth
+                Layout.maximumWidth: root.gaugeWidth
                 Layout.fillHeight: true
                 topPadding: 17
                 leftPadding: 7
@@ -292,7 +320,26 @@ Item {
             }
 
             Win7GroupBox {
-                title: i18n("Resource History (CPU / Memory)")
+                title: i18n("SWAP")
+                Layout.preferredWidth: root.gaugeWidth
+                Layout.minimumWidth: root.gaugeWidth
+                Layout.maximumWidth: root.gaugeWidth
+                Layout.fillHeight: true
+                topPadding: 17
+                leftPadding: 7
+                rightPadding: 7
+                bottomPadding: 6
+
+                Win7Gauge {
+                    anchors.fill: parent
+                    value: root.swapUsedPct
+                    displayText: root.swapUsageAvailable ? root.formatMemShort(root.swapUsedMB) : "—"
+                }
+            }
+
+            Win7GroupBox {
+                title: width >= 210 ? i18n("Resource History (CPU / Memory)")
+                    : width >= 115 ? i18n("Resource History") : i18n("History")
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 topPadding: 17

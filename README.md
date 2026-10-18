@@ -13,7 +13,7 @@ and graphs, with an additional Overview tab. The executable and desktop ID remai
 
 | Tab | Contents |
 | --- | --- |
-| Overview | CPU and memory gauges, combined history, system and I/O readings, and a sortable top-process table. |
+| Overview | CPU, GPU, RAM, and SWAP gauges, combined history, system and I/O readings, and a sortable top-process table. |
 | Applications | Application tasks from systemd application groups, with a user-process fallback, task actions, and three view modes. |
 | Processes | Sortable, resizable columns, CPU and memory percentages, process termination, priority, affinity, and properties dialogs. |
 | Performance | Combined or up to eight per-core CPU graphs, optional kernel-time traces, memory history, and system statistics. |
@@ -23,6 +23,12 @@ Overview and Processes both show **CPU %** and **Memory %** to one decimal place
 CPU is normalized against whole-system capacity. Memory is the process share of
 physical RAM; the original memory-size column remains available. Headers sort
 numerically, and horizontal scrolling keeps headers aligned with their columns.
+
+Overview's gauges run left to right as **CPU → GPU → RAM → SWAP**. CPU and GPU
+show utilization percentages; RAM and SWAP show used capacity with bars scaled
+against their totals. GPU uses the aggregate GPU sensor. Unavailable GPU or swap
+readings show **—**; a system without configured swap shows **0 MB**.
+All four gauges follow the shared refresh speed and Paused setting.
 
 The visual baseline uses 12px Segoe UI text (9pt at 96 DPI), 23px command buttons,
 square tab joins, Aero scrollbars, and a three-pane status bar. The **Windows**
@@ -182,7 +188,8 @@ tests use `~/.qttest`; they need access to that test directory.
 
 Screenshot capture runs sequentially and exits when complete. It saves all five
 tabs, sorted/scrolled tables, menus, context menus, dialogs, and paired paused
-captures. Main client images are 397×421; `our_networking_large.png` also checks
+captures. Main client images are 397×421; Overview also checks 380×395 minimum
+and 780×660 enlarged layouts. `our_networking_large.png` checks
 the three-section layout at 780×660. Dialogs use their own dimensions.
 The following check verifies that every built-in tab stayed frozen and that a
 manual refresh changed Overview:

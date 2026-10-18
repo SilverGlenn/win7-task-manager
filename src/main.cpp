@@ -183,6 +183,8 @@ int main(int argc, char **argv)
             };
             const QList<CaptureStep> steps = {
                 {QStringLiteral("overview"), QString(), QStringLiteral("our_overview.png"), false},
+                {QStringLiteral("overview"), QString(), QStringLiteral("our_overview_minimum.png"), false, QSize(380, 395)},
+                {QStringLiteral("overview"), QString(), QStringLiteral("our_overview_large.png"), false, QSize(780, 660)},
                 {QStringLiteral("overview"), QStringLiteral("sort_overview_cpu"), QStringLiteral("our_overview_sorted_cpu.png"), false},
                 {QStringLiteral("overview"), QStringLiteral("scroll_overview_right"), QStringLiteral("our_overview_scrolled.png"), false},
                 {QStringLiteral("applications"), QString(), QStringLiteral("our_applications.png"), false},
